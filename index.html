@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+
+<html>
+    <head>
+        <title>Send Orders</title>
+        <meta charset="windows-1252">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        <form action="orders.php" method="post">
+        <label for "Pair">Select Currency Pair</label>
+        <select name="Pair">
+            <option selected="selected" value="EA"> EUR/AUD </option>
+            <option value = "EJ"> EUR/JPY </option>
+            <option value = "GJ"> GBP/JPY </option>
+            <option value = "GU"> GBP/USD </option>
+            <option value = "NU"> NZD/USD </option>
+            <option value = "UC"> USD/CAD </option>
+            <option value = "ALL">All    </option>
+        </select>
+        <br><br>
+        <label for "profit"> Enter expected profit</label>
+        <input type ="text" name ="Profit" value = "0.0">
+        <br><br>
+        <input type ="submit" name ="submit" value="Send Order">
+    </form>
+    </body>
+</html>
+
