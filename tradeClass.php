@@ -143,11 +143,9 @@
                               "Low" => 0,
                               "Open" => 0];
           
-           $retTime = new DateTime();                     
            
            for( $i = 0; $i < count($response->candles); $i++ )
            {
-               $retTime->setTimestamp($response->candles[$i]->time/1000000);
                
                if( $i == 0 || $response->candles[$i]->highMid > $this->quotes['High'])
                {
@@ -176,7 +174,8 @@
                 else
                 {
                    $response = json_decode($result);
-//                   var_dump($response);
+                   var_dump($response);
+                   $retTime = new DateTime();
                    for( $i = 0; $i < count($response->candles); $i++ )
                    {
                         $retTime->setTimestamp($response->candles[$i]->time/1000000);
@@ -392,7 +391,7 @@ class TradeRange extends Trade {
     
     public function updateOutfile( )
     {
-        $outfile = $this->curr.".txt";
+        $outfile = "Output/".$this->curr.".txt";
         //ticket;units;strategy;pips;monitorStartDate;
         
         $dec = ( $this->buyPrice > 100 ? 2 : 4);
@@ -400,10 +399,10 @@ class TradeRange extends Trade {
         $dist = round( $this->buyPrice - $this->sellPrice, $dec);
         
         
-        $buyRec = sprintf("%s;%d;%s;%f;%s\n", $this->buyTicket, $this->units, "Range", 
+        $buyRec = sprintf("%s;%d;%s;%s;%f;%s\n", $this->acct, $this->units, "buy","Range", 
                           $dist, $this->monDate->format('Y-m-d H:i'));
         
-        $sellRec = sprintf("%s;%d;%s;%f;%s\n", $this->sellTicket, $this->units, "Range", 
+        $sellRec = sprintf("%s;%d;%s;%s;%f;%s\n", $this->acct, $this->units, "sell","Range", 
                           $dist, $this->monDate->format('Y-m-d H:i'));
 
         $fp = fopen( $outfile, "a" );
@@ -466,7 +465,7 @@ class SupportResist extends Trade {
     
     public function updateOutfile( )
     {
-        $outfile = $this->curr.".txt";
+        $outfile = "Output/".$this->curr.".txt";
         //ticket;units;strategy;pips;monitorStartDate;
         
         $dec = ( $this->buyPrice > 100 ? 2 : 4);
@@ -474,10 +473,10 @@ class SupportResist extends Trade {
         $dist = round( $this->buyPrice - $this->sellPrice, $dec);
         
         
-        $buyRec = sprintf("%s;%d;%s;%f;%s\n", $this->buyTicket, $this->units, "SupRes", 
+        $buyRec = sprintf("%s;%d;%s;%s;%f;%s\n", $this->acct, $this->units, "buy","SupRes", 
                           $dist, $this->monDate->format('Y-m-d H:i'));
         
-        $sellRec = sprintf("%s;%d;%s;%f;%s\n", $this->sellTicket, $this->units, "SupRes", 
+        $sellRec = sprintf("%s;%d;%s;%s;%f;%s\n", $this->acct, $this->units, "sell","SupRes", 
                           $dist, $this->monDate->format('Y-m-d H:i'));
 
         $fp = fopen( $outfile, "a" );
