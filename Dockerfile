@@ -1,5 +1,6 @@
 FROM php:7.1-fpm
-RUN apt-get install libcurl4-openssl-dev pkg-config
+RUN apt-get update
+RUN apt-get install -y autoconf pkg-config libssl-dev
 RUN pecl install mongodb \
     && docker-php-ext-enable mongodb
 
