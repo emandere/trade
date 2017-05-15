@@ -1,14 +1,12 @@
 <?php
 
- class TradeMonitor
+   
+class TradeMonitor 
  {
     protected $curr;
     protected $quotes;
-    protected $pipRange;
-    protected $strategy;
-    protected $monStartDate;
-    protected $ticket;
     protected $units;
+    protected $side;
     protected $auth;
     protected $acct;
     protected $newStopLoss;
@@ -35,53 +33,43 @@
         return $this->strategy;
     }
     
-    public function readMonFile()
+    public function readDB()
     {
-        $infile = "Output/".$this->curr.".txt";
         $found = FALSE;
-        $fh = fopen($infile, "r");
+        $mongoConn = new MongoDB\Driver\Manager("mongodb://localhost:27017");
         
-        if( $fh )
+        //$filter = [];
+        $filter = [ 'pair' => "$this->curr",
+                    'account' => "$this->acct", 
+                    'units' => "$this->units", 
+                    'side' => "$this->side" ]; 
+        
+       // print_r($filter);
+        
+        $options = [ 'projection' => [ '_id' => 0 ]];
+        $mongoQ = new MongoDB\Driver\Query($filter, $options);
+        $mongoCurs = $mongoConn->executeQuery('test.Trades', $mongoQ);
+        //var_dump($mongoCurs->toArray());
+        
+        foreach($mongoCurs as $rec)
         {
-           while( !feof($fh) )
-           {    
-           $rec = fgets($fh);
-           
-    
-           $info = ['fileAcct' => strtok($rec, ";"),
-                    'fileUnits' => strtok(";"),
-                    'fileSide' => strtok(";"),
-                    'fileStrat' =>  strtok(";"),
-                    'filePips' => strtok(";"),
-                    'fileDate' => strtok(";")];
-           
-        
-        
-        
-          if( $this->acct == $info['fileAcct'] && 
-              $this->units == $info['fileUnits'] &&
-              $this->side == $info['fileSide'] )
-          {    
-             //print_r($info);
-             $this->pipRange = chop($info['filePips']);
-             $this->strategy = chop($info['fileStrat']);
-             $this->monStartDate = chop($info['fileDate']);
+           $this->pipRange = $rec->pips;
+           $this->strategy = $rec->strategy;
+           $this->monStartDate = $rec->mon_date;
   
-             if( $this->pipRange > 0 &&
-                ( strtoupper($this->strategy) == "SUPRES" || 
-                  strtoupper($this->strategy) == "RANGE" ))
+           print"$this->pipRange $this->strategy $this->monStartDate";
+           
+           if( $this->pipRange > 0 &&
+              ( strtoupper($this->strategy) == "SUPRES" || 
+                strtoupper($this->strategy) == "RANGE" ))
              {
                 $found = true;
              }
-          }
-           //echo "<br>";
-           }
-           fclose($fh);
-        }
-        
-      return($found);
+          }        
+   
+          return($found);
     }
- 
+
     public function getQuotes()
     {
       $return = FALSE;
@@ -306,11 +294,15 @@ function UpdateTrades( $pair, $info )
                 
                //print_r($monInfo);
                $monitor = new TradeMonitor($monInfo);             
-               if( $monitor->readMonFile() )
+               if( $monitor->readDB() )
                {
-                   if( $monitor->getStrat() == 'Range' && $monitor->getQuotes() )
+                   if( strtoupper($monitor->getStrat()) == 'RANGE' && $monitor->getQuotes() )
                    {
                         $monitor->sendOrder();
+                   }
+                   else if( strtoupper($monitor->getStrat()) == "SUPRES")
+                   {
+                       print "no changes necessary";
                    }
                    
                }

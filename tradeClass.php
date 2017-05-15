@@ -330,8 +330,9 @@
         return $return;
     }
 
-    abstract public function updateOutfile( );    
-}
+    abstract public function updateDB();
+   
+ }
 
 class TradeRange extends Trade {
 
@@ -380,35 +381,79 @@ class TradeRange extends Trade {
          $this->expDate->add(new DateInterval('P7D'));
      
         //print $this->expDate->format('Y-m-d H:i'); 
-        echo "<br>";
+        /*echo "<br>";
         print "buy/sell $this->units";    
         echo "<br>";
         print "buy $this->buyPrice tp $this->buyTakeProfit sl $this->buyStopLoss";
         echo "<br>";
         print " sell $this->sellPrice tp $this->sellTakeProfit sl $this->sellStopLoss";
-        
+        */
     }    
     
-    public function updateOutfile( )
+    public function updateDB()
     {
-        $outfile = "Output/".$this->curr.".txt";
-        //ticket;units;strategy;pips;monitorStartDate;
         
-        $dec = ( $this->buyPrice > 100 ? 2 : 4);
+        $dec = ($this->buyPrice > 100 ? 2 : 4);
+        $dist = round( $this->quotes['High'] - $this->quotes['Low'], $dec);
+        $mongoConn = new MongoDB\Driver\Manager("mongodb://localhost:27017");
+        $bu_bulk = new MongoDB\Driver\BulkWrite;
+        $su_bulk = new MongoDB\Driver\BulkWrite;
+        
+        $update = array("units" =>  $this->units, 
+                        "strategy" => "Range",
+                        "pips" => $dist,
+                        "mon_date" => $this->monDate->format('Y-m-d H:i'));
        
-        $dist = round( $this->buyPrice - $this->sellPrice, $dec);
+        $buy_upd = array("account" =>$this->acct,
+                         "pair" => $this->curr,             
+                         "side" => "buy");
         
+        $bu_bulk->update($buy_upd, [ '$set' => $update]);
+        $result = $mongoConn->executeBulkWrite('test.Trades', $bu_bulk);
         
-        $buyRec = sprintf("%s;%d;%s;%s;%f;%s\n", $this->acct, $this->units, "buy","Range", 
-                          $dist, $this->monDate->format('Y-m-d H:i'));
+        if( $result->getModifiedCount() == 0 )
+        {
+            //print "buy rec not found ";
+            
+            $buy_ins = array("pair" => $this->curr, 
+                        "account" =>$this->acct, 
+                       "units" =>  $this->units, 
+                       "side" => "buy",
+                       "strategy" => "Range",
+                       "pips" => $dist,
+                       "mon_date" => $this->monDate->format('Y-m-d H:i'));            
+            
+            $bi_bulk = new MongoDB\Driver\BulkWrite; 
+            $bi_bulk->insert($buy_ins);
+            $result = $mongoConn->executeBulkWrite('test.Trades', $bi_bulk);
         
-        $sellRec = sprintf("%s;%d;%s;%s;%f;%s\n", $this->acct, $this->units, "sell","Range", 
-                          $dist, $this->monDate->format('Y-m-d H:i'));
+        }
+        
 
-        $fp = fopen( $outfile, "a" );
-        fputs($fp,$buyRec,strlen($buyRec)); 
-        fputs($fp,$sellRec,strlen($sellRec)); 
-        fclose($fp);      
+        $sell_upd = array("account" =>$this->acct,
+                         "pair" => $this->curr,             
+                         "side" => "sell");
+         
+
+        $su_bulk->update($sell_upd, [ '$set' => $update]);
+        $result = $mongoConn->executeBulkWrite('test.Trades', $su_bulk);
+        
+        if( $result->getModifiedCount() == 0 )
+        {
+            //print "sell rec not found ";
+            
+            $sell_ins = array("pair" => $this->curr, 
+                        "account" =>$this->acct, 
+                       "units" =>  $this->units, 
+                       "side" => "sell",
+                       "strategy" => "Range",
+                       "pips" => $dist,
+                       "mon_date" => $this->monDate->format('Y-m-d H:i'));            
+            
+            $si_bulk = new MongoDB\Driver\BulkWrite; 
+            $si_bulk->insert($sell_ins);
+            $result = $mongoConn->executeBulkWrite('test.Trades', $si_bulk);
+        }
     }
 }
 
@@ -452,37 +497,81 @@ class SupportResist extends Trade {
             $this->expDate = new DateTime();            
             $this->expDate->add(new DateInterval('P7D'));
      
-        //print $this->expDate->format('Y-m-d H:i'); 
+        /*print $this->expDate->format('Y-m-d H:i'); 
         echo "<br>";
         print "buy/sell $this->units";    
         echo "<br>";
         print "buy $this->buyPrice tp $this->buyTakeProfit sl $this->buyStopLoss";
         echo "<br>";
         print " sell $this->sellPrice tp $this->sellTakeProfit sl $this->sellStopLoss";
-                    
+          */          
     }
 
     
-    public function updateOutfile( )
+    public function updateDB()
     {
-        $outfile = "Output/".$this->curr.".txt";
-        //ticket;units;strategy;pips;monitorStartDate;
         
-        $dec = ( $this->buyPrice > 100 ? 2 : 4);
-       
+        $dec = ($this->buyPrice > 100 ? 2 : 4);
         $dist = round( $this->buyPrice - $this->sellPrice, $dec);
+        $mongoConn = new MongoDB\Driver\Manager("mongodb://localhost:27017");
+        $bu_bulk = new MongoDB\Driver\BulkWrite;
+        $su_bulk = new MongoDB\Driver\BulkWrite;
         
+        $update = array("units" =>  $this->units, 
+                        "strategy" => "SupRes",
+                        "pips" => $dist,
+                        "mon_date" => $this->monDate->format('Y-m-d H:i'));
+       
+        $buy_upd = array("account" =>$this->acct,
+                         "pair" => $this->curr,             
+                         "side" => "buy");
         
-        $buyRec = sprintf("%s;%d;%s;%s;%f;%s\n", $this->acct, $this->units, "buy","SupRes", 
-                          $dist, $this->monDate->format('Y-m-d H:i'));
+        $bu_bulk->update($buy_upd, [ '$set' => $update]);
+        $result = $mongoConn->executeBulkWrite('test.Trades', $bu_bulk);
         
-        $sellRec = sprintf("%s;%d;%s;%s;%f;%s\n", $this->acct, $this->units, "sell","SupRes", 
-                          $dist, $this->monDate->format('Y-m-d H:i'));
+        if( $result->getModifiedCount() == 0 )
+        {
+            //print "buy rec not found ";
+            
+            $buy_ins = array("pair" => $this->curr, 
+                        "account" =>$this->acct, 
+                       "units" =>  $this->units, 
+                       "side" => "buy",
+                       "strategy" => "SupRes",
+                       "pips" => $dist,
+                       "mon_date" => $this->monDate->format('Y-m-d H:i'));            
+            
+            $bi_bulk = new MongoDB\Driver\BulkWrite; 
+            $bi_bulk->insert($buy_ins);
+            $result = $mongoConn->executeBulkWrite('test.Trades', $bi_bulk);
+        
+        }
+        
 
-        $fp = fopen( $outfile, "a" );
-        fputs($fp,$buyRec,strlen($buyRec)); 
-        fputs($fp,$sellRec,strlen($sellRec)); 
-        fclose($fp);      
+        $sell_upd = array("account" =>$this->acct,
+                         "pair" => $this->curr,             
+                         "side" => "sell");
+         
+
+        $su_bulk->update($sell_upd, [ '$set' => $update]);
+        $result = $mongoConn->executeBulkWrite('test.Trades', $su_bulk);
+        
+        if( $result->getModifiedCount() == 0 )
+        {
+            //print "sell rec not found ";
+            
+            $sell_ins = array("pair" => $this->curr, 
+                        "account" =>$this->acct, 
+                       "units" =>  $this->units, 
+                       "side" => "sell",
+                       "strategy" => "SupRes",
+                       "pips" => $dist,
+                       "mon_date" => $this->monDate->format('Y-m-d H:i'));            
+            
+            $si_bulk = new MongoDB\Driver\BulkWrite; 
+            $si_bulk->insert($sell_ins);
+            $result = $mongoConn->executeBulkWrite('test.Trades', $si_bulk);
+        }
     }
-    
-  }
+}   
+  
