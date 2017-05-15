@@ -1,3 +1,7 @@
+FROM php:apache
+
+MAINTAINER Thiago Moreira <loganguns@gmail.com>
+
 COPY ./config/apache/000-default.conf /etc/apache2/sites-available/000-default.conf
 COPY ./config/php/php.ini /usr/local/etc/php/
 
