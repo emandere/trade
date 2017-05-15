@@ -36,7 +36,7 @@ class TradeMonitor
     public function readDB()
     {
         $found = FALSE;
-        $mongoConn = new MongoDB\Driver\Manager("mongodb://localhost:27017");
+        $mongoConn = new MongoDB\Driver\Manager("mongodb://mongo:27017");
         
         //$filter = [];
         $filter = [ 'pair' => "$this->curr",
