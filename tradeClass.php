@@ -395,7 +395,7 @@ class TradeRange extends Trade {
         
         $dec = ($this->buyPrice > 100 ? 2 : 4);
         $dist = round( $this->quotes['High'] - $this->quotes['Low'], $dec);
-        $mongoConn = new MongoDB\Driver\Manager("mongodb://localhost:27017");
+        $mongoConn = new MongoDB\Driver\Manager("mongodb://mongo:27017");
         $bu_bulk = new MongoDB\Driver\BulkWrite;
         $su_bulk = new MongoDB\Driver\BulkWrite;
         
