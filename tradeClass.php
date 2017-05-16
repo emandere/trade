@@ -30,8 +30,9 @@
     protected $quotes;
     protected $getOpenPrice;
     protected $monDate;
+    protected $mongo;
     
-    public function __construct($pair, $token, $acct)
+    public function __construct($pair, $token, $acct, $mongo)
     {
         $this->curr = $pair;
         $this->buyPrice = 0;
@@ -48,6 +49,7 @@
         $this->auth = "Authorization: Bearer ".chop($token);
         $this->acct = chop($acct);
         $this->getOpenPrice = FALSE;
+        $this->mongo = chop($mongo);   
     }
     
     public function setGetOpenPrice( $getIt )
@@ -336,9 +338,9 @@
 
 class TradeRange extends Trade {
 
-    public function __construct($pair, $token, $acct)
+    public function __construct($pair, $token, $acct, $mongo)
     {
-        parent::__construct($pair, $token, $acct);
+        parent::__construct($pair, $token, $acct, $mongo);
         $this->getOpenPrice = TRUE;        
     }
     
@@ -395,7 +397,7 @@ class TradeRange extends Trade {
         
         $dec = ($this->buyPrice > 100 ? 2 : 4);
         $dist = round( $this->quotes['High'] - $this->quotes['Low'], $dec);
-        $mongoConn = new MongoDB\Driver\Manager("mongodb://mongo:27017");
+        $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
         $bu_bulk = new MongoDB\Driver\BulkWrite;
         $su_bulk = new MongoDB\Driver\BulkWrite;
         
@@ -513,7 +515,7 @@ class SupportResist extends Trade {
         
         $dec = ($this->buyPrice > 100 ? 2 : 4);
         $dist = round( $this->buyPrice - $this->sellPrice, $dec);
-        $mongoConn = new MongoDB\Driver\Manager("mongodb://mongo:27017");
+        $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
         $bu_bulk = new MongoDB\Driver\BulkWrite;
         $su_bulk = new MongoDB\Driver\BulkWrite;
         
