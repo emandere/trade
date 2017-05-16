@@ -269,7 +269,7 @@
           $bArgs = sprintf("instrument=%s&units=%d&side=buy&type=marketIfTouched&expiry=%d&price=%.4f"
                         . "&stopLoss=%.4f&takeProfit=%.4f", 
                           $this->curr, $this->units, $this->expDate->getTimestamp(), $this->buyPrice,
-                          $this->sellStopLoss, $this->buyTakeProfit);        
+                          $this->buyStopLoss, $this->buyTakeProfit);        
         
           
           $sArgs = sprintf("instrument=%s&units=%d&side=sell&type=marketIfTouched&expiry=%d&price=%.4f"
@@ -289,7 +289,7 @@
           $sArgs = sprintf("instrument=%s&units=%d&side=sell&type=marketIfTouched&expiry=%d&price=%.2f"
                         . "&stopLoss=%.2f&takeProfit=%.2f", 
                           $this->curr, $this->units, $this->expDate->getTimestamp(), $this->sellPrice,
-                          $this->buyStopLoss, $this->sellTakeProfit);        
+                          $this->sellStopLoss, $this->sellTakeProfit);        
 
           
         }

@@ -42,7 +42,7 @@ class TradeMonitor
         //$filter = [];
         $filter = [ 'pair' => "$this->curr",
                     'account' => "$this->acct", 
-                    'units' => "$this->units", 
+                    'units' => $this->units, 
                     'side' => "$this->side" ]; 
         
         print_r($filter);
