@@ -7,6 +7,7 @@ class TradeMonitor
     protected $quotes;
     protected $units;
     protected $side;
+    protected $mongo;
     protected $auth;
     protected $acct;
     protected $newStopLoss;
@@ -24,7 +25,7 @@ class TradeMonitor
         $this->ticket = $info['ticket'];
         $this->currStopLoss = $info['stopLoss'];
         $this->currTakeProfit = $info['takeProfit'];
-        
+        $this->mongo = chop($info['mongo']);
         
     }
     
@@ -36,7 +37,7 @@ class TradeMonitor
     public function readDB()
     {
         $found = FALSE;
-        $mongoConn = new MongoDB\Driver\Manager("mongodb://mongo:27017");
+        $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
         
         //$filter = [];
         $filter = [ 'pair' => "$this->curr",
@@ -44,7 +45,7 @@ class TradeMonitor
                     'units' => "$this->units", 
                     'side' => "$this->side" ]; 
         
-       // print_r($filter);
+        print_r($filter);
         
         $options = [ 'projection' => [ '_id' => 0 ]];
         $mongoQ = new MongoDB\Driver\Query($filter, $options);
@@ -57,7 +58,8 @@ class TradeMonitor
            $this->strategy = $rec->strategy;
            $this->monStartDate = $rec->mon_date;
   
-           print"$this->pipRange $this->strategy $this->monStartDate";
+           print"$this->curr $this->pipRange $this->strategy $this->monStartDate";
+           //echo "<br";
            
            if( $this->pipRange > 0 &&
               ( strtoupper($this->strategy) == "SUPRES" || 
@@ -209,6 +211,7 @@ function processInput()
     
     if( $fh )
     {
+       $mongo = fgets($fh);
        $tok = fgets($fh);
        $primary = fgets($fh);
        $second = fgets($fh);            
@@ -216,10 +219,11 @@ function processInput()
            
        $acct = ( $_POST["Acct"] == 'Primary' ? $primary : $second );
 
-       if( $tok && $acct )
+       if( $mongo && $tok && $acct )
        {
            $info = array("token" => $tok, 
-                         "acct" => $acct);
+                         "acct" => $acct,
+                         "mongo" => $mongo );
                 
            switch ($_POST["Pair"]) 
             {
@@ -283,7 +287,8 @@ function UpdateTrades( $pair, $info )
         
            for( $i = 0; $i < count($response->trades); $i++ )
            {
-               $monInfo = array("token" => $info['token'], 
+               $monInfo = array("mongo" => $info['mongo'],
+                                "token" => $info['token'], 
                                 "acct" => $info['acct'], 
                                 "curr" => $response->trades[$i]->instrument,
                                 "units" => $response->trades[$i]->units, 
