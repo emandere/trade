@@ -66,6 +66,16 @@ if( sizeof($_POST) > 0 )
               <meta charset="windows-1252">
               <meta name="viewport" content="width=device-width, initial-scale=1.0">
           </head>
+          <script>
+                function disable_all(disable) {
+                document.getElementById("profit").disabled = disable;
+                document.getElementById("strat").disabled = disable;
+                document.getElementById("start").disabled = disable;
+                document.getElementById("end").disabled = disable;
+                document.getElementById("acct").disabled = disable;
+                        
+    }
+              </script>
           <body>
               <form action="orders.php" method="post">
               <label for "Pair">Select Currency Pair</label>
@@ -79,23 +89,25 @@ if( sizeof($_POST) > 0 )
                   <option value = "ALL">All    </option>
               </select>
               <br><br>
-              <label for "Profit"> Enter expected profit</label>
-              <input type ="text" name ="Profit" value = "0.0">
+              <input type="checkbox" name="auto" value="Yes" onchange="disable_all(this.checked)">Use Default Values<br>
+              <br>
+               <label for "Profit"> Enter expected profit</label>
+              <input type ="text" id ="profit" name ="Profit" value = "0.0">
               <br><br> 
               <label for "Strat">Select Strategy</label>
-              <select name="Strat">
+              <select id="strat" name="Strat">
                   <option selected="selected" value="SupRes"> Current Week Support/Resistance </option>
                   <option value = "Range"> Current Week Range </option>            
               </select>        
               <br><br>
               <label for "Start"> Use Start Date </label>
-              <input type ="text" name ="Start" value = "0"> (yyyy-mm-dd hh)
+              <input type ="text" id="start" name ="Start" value = "0"> (yyyy-mm-dd hh)
               <br><br>
               <label for "End"> Use End Date  </label>
-              <input type ="text" name ="End" value = "0"> (yyyy-mm-dd hh)
+              <input type ="text" id="end" name ="End" value = "0"> (yyyy-mm-dd hh)
               <br><br>
               <label for "Acct">Select Account</label>
-              <select name="Acct">
+              <select id = "acct" name="Acct">
                   <option selected="selected" value="Primary"> Primary </option>
                   <option value = "Second"> Acct 2 </option>            
               </select>        
