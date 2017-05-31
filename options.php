@@ -73,13 +73,14 @@ if( sizeof($_POST) > 0 )
                 document.getElementById("start").disabled = disable;
                 document.getElementById("end").disabled = disable;
                 document.getElementById("acct").disabled = disable;
-                        
-    }
+                }
+                
+                window.onload = disable_all( document.getElementById("auto").checked);
               </script>
           <body>
               <form action="orders.php" method="post">
-              <label for "Pair">Select Currency Pair</label>
-              <select name="Pair">
+              <label for "pair">Select Currency Pair</label>
+              <select name="pair">
                   <option selected="selected" value="EA"> EUR/AUD </option>
                   <option value = "EJ"> EUR/JPY </option>
                   <option value = "GJ"> GBP/JPY </option>
@@ -89,25 +90,25 @@ if( sizeof($_POST) > 0 )
                   <option value = "ALL">All    </option>
               </select>
               <br><br>
-              <input type="checkbox" name="auto" value="Yes" onchange="disable_all(this.checked)">Use Default Values<br>
+              <input type="checkbox" id = "auto" name="auto" value="Yes" onchange="disable_all(this.checked)">Use Default Values<br>
               <br>
-               <label for "Profit"> Enter expected profit</label>
-              <input type ="text" id ="profit" name ="Profit" value = "0.0">
+               <label for "profit"> Enter expected profit</label>
+              <input type ="text" id ="profit" name ="profit" value = "0.0">
               <br><br> 
-              <label for "Strat">Select Strategy</label>
-              <select id="strat" name="Strat">
+              <label for "strat">Select Strategy</label>
+              <select id="strat" name="strat">
                   <option selected="selected" value="SupRes"> Current Week Support/Resistance </option>
                   <option value = "Range"> Current Week Range </option>            
               </select>        
               <br><br>
-              <label for "Start"> Use Start Date </label>
-              <input type ="text" id="start" name ="Start" value = "0"> (yyyy-mm-dd hh)
+              <label for "start"> Use Start Date </label>
+              <input type ="text" id="start" name ="start" value = "0"> (yyyy-mm-dd hh:mm)
               <br><br>
-              <label for "End"> Use End Date  </label>
-              <input type ="text" id="end" name ="End" value = "0"> (yyyy-mm-dd hh)
+              <label for "end"> Use End Date  </label>
+              <input type ="text" id="end" name ="end" value = "0"> (yyyy-mm-dd hh:mm)
               <br><br>
-              <label for "Acct">Select Account</label>
-              <select id = "acct" name="Acct">
+              <label for "acct">Select Account</label>
+              <select id = "acct" name="acct">
                   <option selected="selected" value="Primary"> Primary </option>
                   <option value = "Second"> Acct 2 </option>            
               </select>        
