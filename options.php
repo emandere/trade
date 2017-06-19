@@ -5,12 +5,32 @@
         <meta charset="windows-1252">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
     </head>
+    <script>
+        function getAction() 
+        {
+            if( document.getElementById('Opt').value == "Mon" || 
+                document.getElementById('Opt').value == "Trade" )
+            {
+               document.getElementById('form').action = "<?php $_PHP_SELF ?>";        
+               document.getElementById('form').method = "post";    
+            }
+            else
+            {
+               document.getElementById('form').action = "parms.php";        
+               document.getElementById('form').method = "get";    
+            }
+            
+            document.getElementById('form').submit();
+        }
+        
+    </script>
     <body>
-        <form action="<?php $_PHP_SELF ?>" method="post">
+        <form id = "form" action="" method="" onsubmit="getAction()" >
         <label for "Opt">Select Account Options </label>
-        <select name="Opt">
+        <select id = "Opt" name="Opt" >
             <option selected="selected" value="Trade"> Create new trades </option>
             <option value = "Mon"> Monitor existing trades </option>
+            <option value = "Parms"> Read/Update trade parameters </option>
         </select>
         <br><br>
         <input type ="submit" name ="submit" value="Submit Option">

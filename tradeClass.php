@@ -59,12 +59,15 @@
     
     public function getQuotes( $start, $end )
     {
-      $return = TRUE;
+      $return = [];
       $format = "midpoint";
       $url = "https://api-fxtrade.oanda.com/v1/candles?";
       $args = "";
       $args2 = "";
       date_default_timezone_set("America/New_York");      
+      
+      $return["status"] = TRUE;
+      $return["message"] = "success";
       
       if( $start == 0 && $end == 0 ) 
       {
@@ -86,17 +89,17 @@
       
          
          //print "$start $end in getQuotes()";
-         $startDate = DateTime::createFromFormat('Y-m-d H', $start);
+         $startDate = DateTime::createFromFormat('Y-m-d H:i', $start);
          
-         $endDate = DateTime::createFromFormat('Y-m-d H', $end);
+         $endDate = DateTime::createFromFormat('Y-m-d H:i', $end);
          $this->monDate = clone $endDate;
          
          if( $this->getOpenPrice )
          {
-             $openDateStart = DateTime::createFromFormat('Y-m-d H', $end);
+             $openDateStart = DateTime::createFromFormat('Y-m-d H:i', $end);
              $openDateStart->add(new DateInterval('PT1M'));
              
-             $openDateEnd = DateTime::createFromFormat('Y-m-d H', $end);
+             $openDateEnd = DateTime::createFromFormat('Y-m-d H:i', $end);
              $openDateEnd->add(new DateInterval('PT2M'));
              
              $this->monDate = clone $openDateStart;
@@ -113,10 +116,6 @@
              
          }
          
-         //print $startDate->format('Y-m-d H:i'); 
-         //print $endDate->format('Y-m-d H:i'); 
-   //      echo "<br";
-         
          $args = sprintf("instrument=%s&candleFormat=%s&granularity=%s&dailyAlignment=%d"
                      . "&start=%d&end=%d", 
                        $this->curr, $format, $gran, $align, $startDate->getTimestamp(), 
@@ -132,23 +131,22 @@
               
         if( curl_error($ch) )
         {
-           print "error: ".curl_error($ch);    
-           $return = FALSE;
-           
+           $return["status"] = FALSE;
+           $return["message"] = "Curl error - date range quotes";
         }
         else
         {    
    
             $response = json_decode($result);
-           // print $result;
+            //print $result;
             $this->quotes = [ "High" => 0,
                               "Low" => 0,
                               "Open" => 0];
           
            
+            
            for( $i = 0; $i < count($response->candles); $i++ )
            {
-               
                if( $i == 0 || $response->candles[$i]->highMid > $this->quotes['High'])
                {
                    $this->quotes['High'] = $response->candles[$i]->highMid;                
@@ -160,8 +158,14 @@
                }
     
            }
-       
-            if( $args2 )
+           
+            if( count($response->candles) == 0 )
+            {
+                $return["status"] = FALSE;
+                $return["message"] = "no candles returned for date range";
+            }
+            
+            if( $return["status"] && $args2 )
             {
                 $ch = curl_init($url.$args2);  
                 curl_setopt($ch, CURLOPT_HTTPHEADER, array('X-Accept-Datetime-Format: UNIX','Content-Type: application/json' , $this->auth ));    
@@ -170,34 +174,35 @@
                 
                 if( curl_error($ch) )
                 {
-                    print "error: ".curl_error($ch);    
-                   $return = FALSE;
+                   $return["status"] = FALSE;
+                   $return["message"] = "Curl error - open price quote";
                 }
                 else
                 {
                    $response = json_decode($result);
-                   var_dump($response);
+                   //var_dump($response);
                    $retTime = new DateTime();
+                   
                    for( $i = 0; $i < count($response->candles); $i++ )
                    {
                         $retTime->setTimestamp($response->candles[$i]->time/1000000);
                         if( $retTime->getTimestamp() == $openDateStart->getTimestamp())
                         {
                             $this->quotes['Open'] = $response->candles[$i]->openMid;                
-                            //print "setting open";
-                            
                         }
                    }
+                   
+                   if( count($response->candles) == 0 )
+                   {
+                    $return["status"] = FALSE;
+                    $return["message"] = "no candles returned for open price";
+                   }
+                   
                 }
             }   
            
-           print "Low = ".$this->quotes['Low'];
-           print "High = ".$this->quotes['High'];
-           print "Open = ".$this->quotes['Open'];
-           
-           if( $return ) 
+           if( $return["status"] ) 
            {    
-           
                 $usd = strpos($this->curr, "USD");
 
                 if( $usd === FALSE )
@@ -219,7 +224,8 @@
 
                      if( $this->dollarAsk == 0 )
                      {
-                          $return = FALSE;
+                        $return["status"] = FALSE;
+                        $return["message"] = "error getting dollar ask price";
                      }     
                  }
            }
@@ -227,7 +233,6 @@
    
     curl_close($ch);    
     return($return);
-
    }
    
     public function setDollarAsk( $currency )
@@ -241,15 +246,15 @@
 
         if( curl_error($ch) )
         {
-           print "error: ".curl_error($ch);    
+          // print "error: ".curl_error($ch);    
         }
         else
         {    
             //print "setDollarAsk() response: $result";          
             $response= json_decode($result);
             $this->dollarAsk = $response->prices[0]->ask;
-        
         }   
+        
         curl_close($ch);             
 
     }  // end setDollarAsk()
@@ -260,9 +265,11 @@
     {
         $dec = ( $this->buyPrice > 100 ? 2 : 4);       
         $url = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct."/orders";
-        //print "sendORders url: $url";
+        $return = [];
+   
+        $return["status"] = TRUE;
+        $return["message"] = "success";
         
-        $return = FALSE;
         
         if( $dec == 4 )
         {
@@ -308,26 +315,52 @@
  
         if( !curl_error($ch) )
         {    
-            print "SendOrders() response: $result";          
+            //print "SendOrders() response: $result";          
             $response= json_decode($result);
-            $this->buyTicket = $response->orderOpened->id;
-            echo "<br>";
-
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $sArgs);
-            $result = curl_exec($ch);
-           
-            if( !curl_error($ch) )
+            
+            if( isset($response->code) )
             {
-               $response = json_decode($result);
-               print $result;
-               $this->sellTicket = $response->orderOpened->id;
-               $return = TRUE;
-               
+                $return["status"] = FALSE;
+                $return["message"] = "error code for buy order ".$response->code;
             }
+            else
+            {
+                $this->buyTicket = $response->orderOpened->id;
+            }
+            
+            if( $return["status"] )
+            {
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $sArgs);
+                $result = curl_exec($ch);
 
-        }   
+                if( !curl_error($ch) )
+                {
+                   $response = json_decode($result);
+                   if( isset($response->code) )
+                   {
+                        $return["status"] = FALSE;
+                        $return["message"] = "error code for sell order ".$response->code;
+                   }
+                   else
+                   {
+                       $this->sellTicket = $response->orderOpened->id;
+                       $return["message"] = "buy ticket = ".$this->buyTicket.", sell ticket = ".$this->sellTicket;
+                   }
 
-        print "$this->curr tickets: buy $this->buyTicket   sell $this->sellTicket";         
+                }
+                else
+                {
+                    $return["status"] = FALSE;
+                    $return["message"] = "curl error on sell order send";
+                }
+            }
+        }
+        else
+        {
+            $return["status"] = FALSE;
+            $return["message"] = "curl error on buy order send";
+        }
+
         curl_close($ch);             
         return $return;
     }
