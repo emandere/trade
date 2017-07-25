@@ -110,8 +110,11 @@ if( sizeof($_POST) > 0 )
                   <option value = "ALL">All    </option>
               </select>
               <br><br>
-              <input type="checkbox" id = "auto" name="auto" value="Yes" onchange="disable_all(this.checked)">Use Default Values<br>
-              <br>
+              <input type="checkbox" id = "buy" name="buy" value="Yes" checked=true>Buy    
+              <input type="checkbox" id = "sell" name="sell" value="Yes" checked=true>Sell  
+              <br><br>
+              <input type="checkbox" id = "auto" name="auto" value="Yes" onchange="disable_all(this.checked)">Use Default Values
+              <br><br>
                <label for "profit"> Enter expected profit</label>
               <input type ="text" id ="profit" name ="profit" value = "0.0">
               <br><br> 
@@ -127,10 +130,14 @@ if( sizeof($_POST) > 0 )
               <label for "end"> Use End Date  </label>
               <input type ="text" id="end" name ="end" value = "0"> (yyyy-mm-dd hh:mm)
               <br><br>
+              <label for "percent"> Pip Move %  </label>
+              <input type ="text" id="percent" name ="percent" value = "100"> (1-100)
+              <br><br>
               <label for "acct">Select Account</label>
               <select id = "acct" name="acct">
                   <option selected="selected" value="Primary"> Primary </option>
-                  <option value = "Second"> Acct 2 </option>            
+                  <option value = "Second"> Acct 2 </option> 
+                  <option value = "Split"> Split </option> 
               </select>        
               <br><br>
               <input type ="submit" name ="submit" value="Send Order">

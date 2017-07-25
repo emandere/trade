@@ -26,15 +26,20 @@
     protected $buyTicket;
     protected $sellTicket;
     protected $auth;
-    protected $acct;
+    protected $acct1;
+    protected $acct2;
     protected $quotes;
     protected $getOpenPrice;
     protected $monDate;
     protected $mongo;
+    protected $percent;
+    protected $sendBuy;
+    protected $sendSell;
     
-    public function __construct($pair, $token, $acct, $mongo)
+    
+    public function __construct($pair, $info)
     {
-        $this->curr = $pair;
+        $this->curr = $this->abbrevToPair($pair);
         $this->buyPrice = 0;
         $this->sellPrice = 0;
         $this->dollarAsk = 0;
@@ -46,17 +51,26 @@
         $this->expDate = 0;
         $this->buyTicket = 0;
         $this->sellTicket = 0;
-        $this->auth = "Authorization: Bearer ".chop($token);
-        $this->acct = chop($acct);
+        $this->auth = "Authorization: Bearer ".chop($info["token"]);
+        $this->acct1 = chop($info["acct1"]);
+        $this->acct2 = chop($info["acct2"]);
         $this->getOpenPrice = FALSE;
-        $this->mongo = chop($mongo);   
+        $this->mongo = chop($info["mongo"]);   
+        $this->percent = $info["percent"] * .01;
+        $this->sendBuy = $info["buy"];
+        $this->sendSell = $info["sell"];
+        
+        /*$cvars = [ "curr" => $this->curr,
+                    "acct1" => $this->acct1,
+                    "acct2" => $this->acct2,
+                    "auth" => $this->auth,
+                    "mongo" => $this->mongo,
+                    "percent" => $this->percent];
+         
+        print_r($cvars);*/
     }
     
-    public function setGetOpenPrice( $getIt )
-    {
-        $this->getOpenPrice = $getIt;
-    }
-    
+ 
     public function getQuotes( $start, $end )
     {
       $return = [];
@@ -264,7 +278,17 @@
     public function sendOrders( )
     {
         $dec = ( $this->buyPrice > 100 ? 2 : 4);       
-        $url = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct."/orders";
+        $buy_url = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct1."/orders";
+        
+        if( strlen($this->acct2) > 0 )
+        {
+            $sell_url = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct2."/orders";
+        }
+        else
+        {
+            $sell_url = $buy_url;
+        }
+        
         $return = [];
    
         $return["status"] = TRUE;
@@ -302,78 +326,158 @@
         }
 
         
-        $ch = curl_init($url);     
-        $date = "X-Accept-Datetime-Format: UNIX";
-        
-        
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array($date, $this->auth ));    
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch,CURLOPT_POST, true);
-        
-        curl_setopt($ch, CURLOPT_POSTFIELDS, $bArgs);
-        $result = curl_exec($ch);
- 
-        if( !curl_error($ch) )
-        {    
-            //print "SendOrders() response: $result";          
-            $response= json_decode($result);
-            
-            if( isset($response->code) )
-            {
-                $return["status"] = FALSE;
-                $return["message"] = "error code for buy order ".$response->code;
-            }
-            else
-            {
-                $this->buyTicket = $response->orderOpened->id;
-            }
-            
-            if( $return["status"] )
-            {
-                curl_setopt($ch, CURLOPT_POSTFIELDS, $sArgs);
-                $result = curl_exec($ch);
+        if( $this->sendBuy )
+        {
+            $ch = curl_init($buy_url);     
+            $date = "X-Accept-Datetime-Format: UNIX";
 
-                if( !curl_error($ch) )
+
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array($date, $this->auth ));    
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch,CURLOPT_POST, true);
+
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $bArgs);
+            $result = curl_exec($ch);
+
+            if( !curl_error($ch) )
+            {    
+                //print "SendOrders() response: $result";          
+                $response= json_decode($result);
+
+                if( isset($response->code) )
                 {
-                   $response = json_decode($result);
-                   if( isset($response->code) )
-                   {
-                        $return["status"] = FALSE;
-                        $return["message"] = "error code for sell order ".$response->code;
-                   }
-                   else
-                   {
-                       $this->sellTicket = $response->orderOpened->id;
-                       $return["message"] = "buy ticket = ".$this->buyTicket.", sell ticket = ".$this->sellTicket;
-                   }
-
+                    $return["status"] = FALSE;
+                    $return["message"] = "error code for buy order ".$response->code;
                 }
                 else
                 {
-                    $return["status"] = FALSE;
-                    $return["message"] = "curl error on sell order send";
+                    $this->buyTicket = $response->orderOpened->id;
                 }
             }
+            else
+            {
+                $return["status"] = FALSE;
+                $return["message"] = "curl error on buy order send";
+            }
+        
+            curl_close($ch);             
         }
-        else
+        
+        if( $return["status"] && $this->sendSell )
         {
-            $return["status"] = FALSE;
-            $return["message"] = "curl error on buy order send";
-        }
+            $ch = curl_init($sell_url);     
+            $date = "X-Accept-Datetime-Format: UNIX";
+        
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array($date, $this->auth ));    
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch,CURLOPT_POST, true);
+                
+            curl_setopt($ch, CURLOPT_POSTFIELDS, $sArgs);
+            $result = curl_exec($ch);
 
-        curl_close($ch);             
+            if( !curl_error($ch) )
+            {
+                $response = json_decode($result);
+                if( isset($response->code) )
+                {
+                    $return["status"] = FALSE;
+                    $return["message"] = "error code for sell order ".$response->code;
+                }
+                else
+                {
+                   $this->sellTicket = $response->orderOpened->id;
+                   $return["message"] = "buy ticket = ".$this->buyTicket.", sell ticket = ".$this->sellTicket;
+               }
+
+            }
+            else
+            {
+                $return["status"] = FALSE;
+                $return["message"] = "curl error on sell order send";
+            }
+        
+            curl_close($ch);             
+        }
+        
         return $return;
     }
 
-    abstract public function updateDB();
+    public function OrderExists()
+    {
+        $found = FALSE;
+        $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
+        
+        //$filter = [];
+        $filter = [ 'pair' => "$this->curr",
+                    'account' => "$this->acct", 
+                    'units' => $this->units, 
+                    'side' => "$this->side" ]; 
+        
+        print_r($filter);
+        
+        $options = [ 'projection' => [ '_id' => 0 ]];
+        $mongoQ = new MongoDB\Driver\Query($filter, $options);
+        $mongoCurs = $mongoConn->executeQuery('test.Trades', $mongoQ);
+        //var_dump($mongoCurs->toArray());
+        
+        foreach($mongoCurs as $rec)
+        {
+           $this->pipRange = $rec->pips;
+           $this->strategy = $rec->strategy;
+           $this->monStartDate = $rec->mon_date;
+  
+           print"$this->curr $this->pipRange $this->strategy $this->monStartDate";
+           //echo "<br";
+           
+           if( $this->pipRange > 0 &&
+              ( strtoupper($this->strategy) == "SUPRES" || 
+                strtoupper($this->strategy) == "RANGE" ))
+             {
+                $found = true;
+             }
+          }        
+   
+          return($found);
+    }
+
+    function abbrevToPair( $abbrev )
+    {
+        $return = "";
+
+        switch ($abbrev) 
+        {
+            case "EA":
+              $return = "EUR_AUD";
+               break;
+            case "EJ":
+              $return = "EUR_JPY";
+               break;
+            case "GJ":
+              $return = "GBP_JPY";
+               break;
+            case "GU":
+               $return = "GBP_USD";
+               break;
+            case "NU":
+               $return = "NZD_USD";
+               break;
+            case "UC":
+               $return = "USD_CAD";
+               break;
+        }
+
+    return($return);
+  }
+  
+  abstract public function updateDB($auto);
    
  }
 
 class TradeRange extends Trade {
 
-    public function __construct($pair, $token, $acct, $mongo)
+    public function __construct($pair, $info)
     {
-        parent::__construct($pair, $token, $acct, $mongo);
+        parent::__construct($pair, $info);
         $this->getOpenPrice = TRUE;        
     }
     
@@ -425,7 +529,7 @@ class TradeRange extends Trade {
         */
     }    
     
-    public function updateDB()
+    public function updateDB($auto)
     {
         
         $dec = ($this->buyPrice > 100 ? 2 : 4);
@@ -437,7 +541,8 @@ class TradeRange extends Trade {
         $update = array("units" =>  $this->units, 
                         "strategy" => "Range",
                         "pips" => $dist,
-                        "mon_date" => $this->monDate->format('Y-m-d H:i'));
+                        "mon_date" => $this->monDate->format('Y-m-d H:i'), 
+                        "auto" => ( $auto ? "yes" : "no") );
        
         $buy_upd = array("account" =>$this->acct,
                          "pair" => $this->curr,             
@@ -456,7 +561,9 @@ class TradeRange extends Trade {
                        "side" => "buy",
                        "strategy" => "Range",
                        "pips" => $dist,
-                       "mon_date" => $this->monDate->format('Y-m-d H:i'));            
+                       "mon_date" => $this->monDate->format('Y-m-d H:i'), 
+                       "auto" => ( $auto ? "yes" : "no") );
+                  
             
             $bi_bulk = new MongoDB\Driver\BulkWrite; 
             $bi_bulk->insert($buy_ins);
@@ -483,7 +590,9 @@ class TradeRange extends Trade {
                        "side" => "sell",
                        "strategy" => "Range",
                        "pips" => $dist,
-                       "mon_date" => $this->monDate->format('Y-m-d H:i'));            
+                       "mon_date" => $this->monDate->format('Y-m-d H:i'), 
+                       "auto" => ( $auto ? "yes" : "no") );
+                  
             
             $si_bulk = new MongoDB\Driver\BulkWrite; 
             $si_bulk->insert($sell_ins);
@@ -496,39 +605,35 @@ class SupportResist extends Trade {
     
     public function setOrderValues( $profit )
     {
-            $this->buyPrice = $this->quotes['High'];
-            $this->sellPrice = $this->quotes['Low'];
-
-            $dist = $this->buyPrice - $this->sellPrice;
-            $risk = $profit * 2;
-            $dec = ( $this->buyPrice > 100 ? 2 : 4);
-
+            $dec = ( $this->quotes['High'] > 100 ? 2 : 4);
+            $this->buyPrice = round( $this->quotes['High'], $dec, PHP_ROUND_HALF_UP );
+            $this->sellPrice = round( $this->quotes['Low'], $dec, PHP_ROUND_HALF_DOWN );
+            $dist = ( $this->buyPrice - $this->sellPrice ) * $this->percent;
+    
             switch( $this->curr )
             {
                 case "EUR_AUD":
-                    $this->units = round($risk/($dist * $this->dollarAsk));
+                    $this->units = round($profit/($dist * $this->dollarAsk));
                   break;
                 case "EUR_JPY":
                 case "GBP_JPY":
-                    $this->units = round($risk/( $dist * (1/$this->dollarAsk)));
+                    $this->units = round($profit/( $dist * (1/$this->dollarAsk)));
                   break;
                 case "GBP_USD":
                 case "NZD_USD":
-                    $this->units = round($risk/$dist);
+                    $this->units = round($profit/$dist);
                   break;
                 case "USD_CAD":
-                    $this->units = round($risk/($dist * (1/($this->buyPrice + $dist))));
+                    $this->units = round($profit/($dist * (1/($this->buyPrice + $dist))));
                   break;
             }
 
             $this->units++;
-            $this->buyStopLoss = round(($this->buyPrice + $this->sellPrice)/2, $dec);                
-            $this->buyTakeProfit = round(($this->buyPrice+($dist/2)),$dec);
-            $this->sellStopLoss = $this->buyStopLoss; 
-            $this->sellTakeProfit = round(($this->sellPrice-($dist/2)),$dec);
-
+            $this->buyStopLoss = round( $this->buyPrice - $dist,  $dec, PHP_ROUND_HALF_DOWN);                
+            $this->buyTakeProfit = round( $this->buyPrice + $dist, $dec, PHP_ROUND_HALF_UP);
+            $this->sellStopLoss =  round( $this->sellPrice + $dist,  $dec, PHP_ROUND_HALF_UP);
+            $this->sellTakeProfit = round( $this->sellPrice - $dist, $dec, PHP_ROUND_HALF_DOWN);
             date_default_timezone_set("America/New_York");
-
             $this->expDate = new DateTime();            
             $this->expDate->add(new DateInterval('P7D'));
      
@@ -539,15 +644,20 @@ class SupportResist extends Trade {
         print "buy $this->buyPrice tp $this->buyTakeProfit sl $this->buyStopLoss";
         echo "<br>";
         print " sell $this->sellPrice tp $this->sellTakeProfit sl $this->sellStopLoss";
-          */          
+          */         
     }
 
     
-    public function updateDB()
+    public function updateDB($auto)
     {
         
         $dec = ($this->buyPrice > 100 ? 2 : 4);
         $dist = round( $this->buyPrice - $this->sellPrice, $dec);
+        $retInfo = [];
+        
+         try 
+        {
+        
         $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
         $bu_bulk = new MongoDB\Driver\BulkWrite;
         $su_bulk = new MongoDB\Driver\BulkWrite;
@@ -555,7 +665,9 @@ class SupportResist extends Trade {
         $update = array("units" =>  $this->units, 
                         "strategy" => "SupRes",
                         "pips" => $dist,
-                        "mon_date" => $this->monDate->format('Y-m-d H:i'));
+                        "mon_date" => $this->monDate->format('Y-m-d H:i'), 
+                        "auto" => ( $auto ? "yes" : "no") );
+       
        
         $buy_upd = array("account" =>$this->acct,
                          "pair" => $this->curr,             
@@ -574,8 +686,9 @@ class SupportResist extends Trade {
                        "side" => "buy",
                        "strategy" => "SupRes",
                        "pips" => $dist,
-                       "mon_date" => $this->monDate->format('Y-m-d H:i'));            
-            
+                       "mon_date" => $this->monDate->format('Y-m-d H:i'), 
+                       "auto" => ( $auto ? "yes" : "no") );
+                   
             $bi_bulk = new MongoDB\Driver\BulkWrite; 
             $bi_bulk->insert($buy_ins);
             $result = $mongoConn->executeBulkWrite('test.Trades', $bi_bulk);
@@ -601,12 +714,22 @@ class SupportResist extends Trade {
                        "side" => "sell",
                        "strategy" => "SupRes",
                        "pips" => $dist,
-                       "mon_date" => $this->monDate->format('Y-m-d H:i'));            
-            
+                       "mon_date" => $this->monDate->format('Y-m-d H:i'),
+                       "auto" => ( $auto ? "yes" : "no") );
+                  
             $si_bulk = new MongoDB\Driver\BulkWrite; 
             $si_bulk->insert($sell_ins);
             $result = $mongoConn->executeBulkWrite('test.Trades', $si_bulk);
         }
+    }
+    catch (Exception $e) 
+    {
+        $retInfo["status"] = FALSE;
+        $retInfo["message"] = $e->getMessage();
+    }
+
+    
+    
     }
 }   
   

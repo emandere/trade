@@ -33,7 +33,7 @@ class parmsClass
         $this->start_t_1 = "00:00";
         $this->end_t_1 = "00:00";
         $this->strat_1 = "";
-        $this->acct_1 = "";
+        $this->acct_1 = "Split";
         $this->enable_1 = 'Y';
         $this->profit_2 = 0;
         $this->move_2 = 100;
@@ -42,7 +42,7 @@ class parmsClass
         $this->start_t_2 = "00:00";
         $this->end_t_2 = "00:00";
         $this->strat_2 = "";
-        $this->acct_2 = "";
+        $this->acct_2 = "Split";
         $this->primary = $info["primary"];
         $this->second = $info["second"];
         $this->mongo = $info["mongo"];
@@ -54,7 +54,8 @@ class parmsClass
     {
         $found = FALSE;
        
-                
+        try
+        {  
                 $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
             
                 $options = [ 'projection' => [ '_id' => 0 ]];
@@ -85,7 +86,12 @@ class parmsClass
                  
                    $found = TRUE;
                 }        
-            
+        }
+        catch (Exception $e) 
+        {
+            //$retInfo["status"] = FALSE;
+            print $e->getMessage();
+        }
       
     return($found);
     }
@@ -144,42 +150,60 @@ class parmsClass
     
     public function updateDB()
     {
-        $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
-        $bulk = new MongoDB\Driver\BulkWrite;
-        
-        $find = [];
-        $update = array("profit_1" =>  $this->profit_1,
-                        "move_1" =>  $this->move_1,
-                        "start_day_1" => $this->start_d_1,
-                        "end_day_1" => $this->end_d_1,
-                        "start_time_1" => $this->start_t_1,
-                        "end_time_1" => $this->end_t_1,
-                        "strat_1" => $this->strat_1,
-                        "acct_1" => $this->acct_1,
-                        "enable_1" => $this->enable_1,
-                        "profit_2" =>  $this->profit_2,
-                        "move_2" =>  $this->move_2,
-                        "start_day_2" => $this->start_d_2,
-                        "end_day_2" => $this->end_d_2,
-                        "start_time_2" => $this->start_t_2,
-                        "end_time_2" => $this->end_t_2,
-                        "strat_2" => $this->strat_2,
-                        "acct_2" => $this->acct_2 , 
-                        "enable_2" => $this->enable_2);
         
         
-        $bulk->update($find, [ '$set' => $update], ['multi' => true, 'upsert' => true] );
-        $result = $mongoConn->executeBulkWrite('test.Parms', $bulk);
-        
-        var_dump( $result);
-        if( $result->getModifiedCount() == 0 )
+        try
         {
-            $ins_bulk = new MongoDB\Driver\BulkWrite;
-            $ins_bulk->insert($update);
-            $result = $mongoConn->executeBulkWrite('test.Parms', $ins_bulk);
-            var_dump( $result);
+            $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
+            $bulk = new MongoDB\Driver\BulkWrite;
+
+            $find = [];
+            $update = array("profit_1" =>  $this->profit_1,
+                            "move_1" =>  $this->move_1,
+                            "start_day_1" => $this->start_d_1,
+                            "end_day_1" => $this->end_d_1,
+                            "start_time_1" => $this->start_t_1,
+                            "end_time_1" => $this->end_t_1,
+                            "strat_1" => $this->strat_1,
+                            "acct_1" => $this->acct_1,
+                            "enable_1" => $this->enable_1,
+                            "profit_2" =>  $this->profit_2,
+                            "move_2" =>  $this->move_2,
+                            "start_day_2" => $this->start_d_2,
+                            "end_day_2" => $this->end_d_2,
+                            "start_time_2" => $this->start_t_2,
+                            "end_time_2" => $this->end_t_2,
+                            "strat_2" => $this->strat_2,
+                            "acct_2" => $this->acct_2 , 
+                            "enable_2" => $this->enable_2);
+
+            try
+            {
+                $bulk->update($find, [ '$set' => $update], ['multi' => true, 'upsert' => true] );
+                $result = $mongoConn->executeBulkWrite('test.Parms', $bulk);
+
+                //var_dump( $result);
+                if( $result->getModifiedCount() == 0 && $result->getUpsertedCount() == 0 )
+                {       
+                    print "Error....Re-Submit";
+                    //var_dump( $result);
+                }
+                else
+                {
+                    print "Update Successful!";
+                }
+            }
+            catch (Exception $e) 
+            {
+            //$retInfo["status"] = FALSE;
+            print $e->getMessage();
+            }
+        } 
+        catch (Exception $e) 
+        {
+            //$retInfo["status"] = FALSE;
+            print $e->getMessage();
         }
-        
     }
 }
 
@@ -197,8 +221,6 @@ if( $info  )
         {
             $p->setValues( $info );
             $p->updateDB();
-            print "Update Successful!";
-            echo "<br>";
         }
     
     }
@@ -252,8 +274,8 @@ function readInfile()
 
 function getValues( $fileInfo )
 {
-    $acct1 = ($_POST["acct1"] == "Primary" ? $fileInfo["primary"] : $fileInfo["second"]);
-    $acct2 = ($_POST["acct2"] == "Primary" ? $fileInfo["primary"] : $fileInfo["second"]);
+    //$acct1 = ($_POST["acct1"] == "Primary" ? $fileInfo["primary"] : $fileInfo["second"]);
+    //$acct2 = ($_POST["acct2"] == "Primary" ? $fileInfo["primary"] : $fileInfo["second"]);
     
     $info = array("prof1" => $_POST["prof1"], 
                    "move1" => $_POST["move1"],
@@ -262,8 +284,7 @@ function getValues( $fileInfo )
                    "st1" => $_POST["st1"],
                    "et1" => $_POST["et1"], 
                    "strat1" => $_POST["strat1"],
-                   "acct1" => $acct1,
-                   "enable1" => ( $_POST["enable1"] == 'Y' ? $_POST["enable1"] : ' '),
+                   "acct1" => $_POST["acct1"],
                    "prof2" => $_POST["prof2"],
                    "move2" => $_POST["move2"],
                    "sd2" => $_POST["sd2"],
@@ -271,13 +292,20 @@ function getValues( $fileInfo )
                    "st2" => $_POST["st2"],
                    "et2" => $_POST["et2"],
                    "strat2" => $_POST["strat2"],
-                   "acct2" => $acct2,
-                   "enable2" => ( $_POST["enable2"] == 'Y' ? $_POST["enable2"] : ' '),
+                   "acct2" => $_POST["acct2"],
                    "primary" => $fileInfo["primary"],
-                   "second" => $fileInfo["second"] );
-
+                   "second" => $fileInfo["second"],
+                   "enable1" => 'N',
+                   "enable2" => 'N' );
     
-    return($info);
+     if( array_key_exists( "enable1", $_POST ) && $_POST["enable1"] == 'Y' )
+        $info["enable1"] = $_POST["enable1"];
+             
+     if( array_key_exists( "enable2", $_POST ) && $_POST["enable2"] == 'Y' )
+        $info["enable2"] = $_POST["enable2"];
+     
+     //print_r($info);
+     return($info);
 }
 
  function validInput( )
@@ -437,11 +465,15 @@ function getValues( $fileInfo )
 
               document.getElementById("enable2").checked = ( '<?php print $info["enable2"]?>'  == 'Y' ? true : false );
 
-              document.getElementById("acct1").value = 
-                      ( '<?php print $info["acct1"]?>'  == '<?php print $info["second"]?>'  ? "Second" : "Primary");
+              if( '<?php print $info["acct1"]?>' == 'Primary' || '<?php print $info["acct1"]?>' == 'Second' )
+                    document.getElementById("acct1").value = '<?php print $info["acct1"]?>';
+              else
+                    document.getElementById("acct1").value = 'Split';
                   
-              document.getElementById("acct2").value = 
-                      ( '<?php print $info["acct2"]?>'  == '<?php print $info["second"]?>'  ? "Second" : "Primary");
+              if( '<?php print $info["acct2"]?>' == 'Primary' || '<?php print $info["acct2"]?>' == 'Second' )
+                    document.getElementById("acct2").value = '<?php print $info["acct2"]?>';
+              else
+                    document.getElementById("acct2").value = 'Split';
               
               document.getElementById("strat1").value = 
               ( '<?php print $info["strat1"]?>' == 'SupRes' || '<?php print $info["strat1"]?>' == ' ' ? 
@@ -487,7 +519,8 @@ function getValues( $fileInfo )
               <br><br>
               <select id = "acct1" name="acct1">
                  <option  value="Primary"> Primary </option>
-                 <option  value="Second"> Acct 2 </option>            
+                 <option  value="Second"> Acct 2 </option>
+                 <option value = "Split"> Split </option> 
               </select>  
               <input type="checkbox" id = "enable1" name="enable1" value="Y" >Enable Trade #1<br>
              </div>
@@ -521,7 +554,8 @@ function getValues( $fileInfo )
               <br><br>
               <select id = "acct2" name="acct2">
                  <option  value="Primary"> Primary </option>
-                 <option value="Second"> Acct 2 </option>            
+                 <option value="Second"> Acct 2 </option>    
+                 <option value = "Split"> Split </option> 
               </select>        
               <input type="checkbox" id = "enable2" name="enable2" value="Y" >Enable Trade #2<br>
              </div>
