@@ -156,8 +156,9 @@ class TradeMonitor
         
         $args = NULL;
         
+        $args = "stopLoss=".$this->currStopLoss."&takeProfit=".$this->newTakeProfit;;
         
-        if( $this->newStopLoss != $this->currStopLoss ) 
+        /*if( $this->newStopLoss != $this->currStopLoss ) 
         {
             $args = "stopLoss=".$this->newStopLoss;
         }
@@ -173,7 +174,7 @@ class TradeMonitor
                 $args .= "takeProfit=".$this->newTakeProfit;                
             }
             
-        }
+        }*/
         
         if( $args )
         {
@@ -202,7 +203,11 @@ class TradeMonitor
         
  }
   
+// print( "account is ");
+ //print $_POST["Acct"];
   processInput();
+  
+
   
 function processInput()
 {
@@ -217,15 +222,24 @@ function processInput()
        $second = fgets($fh);            
        fclose($fh);
            
-       $acct = ( $_POST["Acct"] == 'Primary' ? $primary : $second );
-
+       if( $_POST["Acct"] == 'ALL' )
+       {
+           print("Check All Accounts");
+       }
+       else
+       {
+            $acct = ( $_POST["Acct"] == 'Primary' ? $primary : $second );
+       }
+       
        if( $mongo && $tok && $acct )
        {
            $info = array("token" => $tok, 
                          "acct" => $acct,
                          "mongo" => $mongo );
-                
-           switch ($_POST["Pair"]) 
+           
+           //getOrders( $_POST["Pair"], $info);
+           getHistory( $_POST["Pair"], $info);
+           /*switch ($_POST["Pair"]) 
             {
               case "EA":
                  UpdateTrades("EUR_AUD", $info);
@@ -248,7 +262,7 @@ function processInput()
               case "ALL":
                 UpdateTrades("ALL", $info);
                break;
-           }
+           }*/
        }
     }
     else
@@ -258,9 +272,38 @@ function processInput()
 
 }
 
-function UpdateTrades( $pair, $info )
+function abbrevToPair( $abbrev )
+{
+    $return = "";
+    
+    switch ($abbrev) 
+    {
+        case "EA":
+          $return = "EUR_AUD";
+           break;
+        case "EJ":
+          $return = "EUR_JPY";
+           break;
+        case "GJ":
+          $return = "GBP_JPY";
+           break;
+        case "GU":
+           $return = "GBP_USD";
+           break;
+        case "NU":
+           $return = "NZD_USD";
+           break;
+        case "UC":
+           $return = "USD_CAD";
+           break;
+    }
+
+    return($return);
+}
+
+/*function UpdateTrades( $pair, $info )
  {
-        $url = "https://api-fxtrade.oanda.com/v1/accounts/".chop($info['acct'])."/trades";
+        $url = "https://api-fxtrade.oanda.com/v1/accounts/".chop($info['acct'])."/orders";
         $auth = "Authorization: Bearer ".chop($info['token']);
         $args = NULL;
         
@@ -283,9 +326,9 @@ function UpdateTrades( $pair, $info )
         else
         {
          $response = json_decode($result);
-        //var_dump(json_decode($result));
+         var_dump(json_decode($result));
         
-           for( $i = 0; $i < count($response->trades); $i++ )
+          for( $i = 0; $i < count($response->trades); $i++ )
            {
                $monInfo = array("mongo" => $info['mongo'],
                                 "token" => $info['token'], 
@@ -298,6 +341,7 @@ function UpdateTrades( $pair, $info )
                                 "takeProfit" => $response->trades[$i]->takeProfit);
                 
                //print_r($monInfo);
+               
                $monitor = new TradeMonitor($monInfo);             
                if( $monitor->readDB() )
                {
@@ -307,7 +351,7 @@ function UpdateTrades( $pair, $info )
                    }
                    else if( strtoupper($monitor->getStrat()) == "SUPRES")
                    {
-                       print "no changes necessary";
+                       $monitor->sendOrder();
                    }
                    
                }
@@ -315,9 +359,115 @@ function UpdateTrades( $pair, $info )
         }
     
     
+ }*/
+
+function getOrders( $pair, $info )
+ {
+        $url = "https://api-fxtrade.oanda.com/v1/accounts/".chop($info['acct'])."/orders";
+        $auth = "Authorization: Bearer ".chop($info['token']);
+        $args = NULL;
+        $orders = [];
+        
+        if( $pair != "ALL")
+        {
+            $args = sprintf("?instrument=%s", abbrevToPair($pair) ); 
+        }
+        
+        $ch = ( $args ? curl_init($url.$args) : curl_init($url) );
+                    
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array($auth));    
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        
+        $result = curl_exec($ch);
+        
+        if( curl_error($ch) )
+        {
+            print curl_error($ch);
+        }
+        else
+        {
+         $response = json_decode($result);
+         //var_dump(json_decode($result));
+         
+         
+          for( $i = 0; $i < count($response->orders); $i++ )
+           {
+               $orderInfo = array("curr" => $response->orders[$i]->instrument,
+                                "units" => $response->orders[$i]->units, 
+                                "side" => $response->orders[$i]->side, 
+                                "ticket" => $response->orders[$i]->id, 
+                                "stopLoss" => $response->orders[$i]->stopLoss, 
+                                "takeProfit" => $response->orders[$i]->takeProfit);
+               
+              
+               $orders[$i] = $orderInfo;
+           }
+        }
+    
+        print_r($orders);
  }
 
-    /* get open trades for oanda, either for specific or all currencies.
+ function getHistory( $pair, $info )
+ {
+     
+        $url = "https://api-fxtrade.oanda.com/v1/accounts/".chop($info['acct'])."/transactions";
+        $auth = "Authorization: Bearer ".chop($info['token']);
+        $args = NULL;
+        $orders = [];
+        
+        if( $pair != "ALL")
+        {
+            $args = sprintf("?instrument=%s", abbrevToPair($pair) ); 
+        }
+        
+        $ch = ( $args ? curl_init($url.$args) : curl_init($url) );
+                    
+        curl_setopt($ch, CURLOPT_HTTPHEADER, array($auth));    
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        
+        $result = curl_exec($ch);
+        
+        if( curl_error($ch) )
+        {
+            print curl_error($ch);
+        }
+        else
+        {
+         $response = json_decode($result);
+         //var_dump( $result );
+         $startDate = DateTime::createFromFormat('Y-m-d H:i', "2017-07-24 08:00");
+         $realPL = 0;
+         
+         for( $i = 0; $i < count($response->transactions); $i++ )
+           {
+              
+              if( $response->transactions[$i]->type == "TAKE_PROFIT_FILLED" || 
+                  $response->transactions[$i]->type == "STOP_LOSS_FILLED" || 
+                  $response->transactions[$i]->type == "TRADE_CLOSE" )
+              {
+                  if( strrpos( $response->transactions[$i]->time, "T") == 10 ) 
+                  {        
+                        $sDate = sprintf( "%s %s", substr($response->transactions[$i]->time , 0, 10), 
+                                             substr($response->transactions[$i]->time, 11, 5 ) );
+
+                        $tempDate = DateTime::createFromFormat('Y-m-d H:i', $sDate);
+                        if( $tempDate >= $startDate )
+                        {
+                             $realPL += $response->transactions[$i]->pl;
+                        }
+
+                    }
+              
+                
+               }    
+                  
+           }
+           print " pl = $realPL";
+           
+        }
+    
+ }
+ /* get open trades for oanda, either for specific or all currencies.
      * populate in ? structure, then read appropriate .txt file and 
      * get pip amt/monitor start date.
      *  

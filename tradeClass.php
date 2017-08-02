@@ -35,7 +35,7 @@
     protected $percent;
     protected $sendBuy;
     protected $sendSell;
-    
+    protected $profit;
     
     public function __construct($pair, $info)
     {
@@ -59,6 +59,7 @@
         $this->percent = $info["percent"] * .01;
         $this->sendBuy = $info["buy"];
         $this->sendSell = $info["sell"];
+        $this->profit = $info["profit"];
         
         /*$cvars = [ "curr" => $this->curr,
                     "acct1" => $this->acct1,
@@ -273,8 +274,6 @@
 
     }  // end setDollarAsk()
    
-    abstract public function setOrderValues( $profit );
-  
     public function sendOrders( )
     {
         $dec = ( $this->buyPrice > 100 ? 2 : 4);       
@@ -402,44 +401,7 @@
         return $return;
     }
 
-    public function OrderExists()
-    {
-        $found = FALSE;
-        $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
-        
-        //$filter = [];
-        $filter = [ 'pair' => "$this->curr",
-                    'account' => "$this->acct", 
-                    'units' => $this->units, 
-                    'side' => "$this->side" ]; 
-        
-        print_r($filter);
-        
-        $options = [ 'projection' => [ '_id' => 0 ]];
-        $mongoQ = new MongoDB\Driver\Query($filter, $options);
-        $mongoCurs = $mongoConn->executeQuery('test.Trades', $mongoQ);
-        //var_dump($mongoCurs->toArray());
-        
-        foreach($mongoCurs as $rec)
-        {
-           $this->pipRange = $rec->pips;
-           $this->strategy = $rec->strategy;
-           $this->monStartDate = $rec->mon_date;
   
-           print"$this->curr $this->pipRange $this->strategy $this->monStartDate";
-           //echo "<br";
-           
-           if( $this->pipRange > 0 &&
-              ( strtoupper($this->strategy) == "SUPRES" || 
-                strtoupper($this->strategy) == "RANGE" ))
-             {
-                $found = true;
-             }
-          }        
-   
-          return($found);
-    }
-
     function abbrevToPair( $abbrev )
     {
         $return = "";
@@ -468,10 +430,223 @@
 
     return($return);
   }
-  
-  abstract public function updateDB($auto);
+
+    public function TransactionComplete()
+    {
+        $return["status"] = TRUE;
+        $return["message"] = "complete";
+        
+        try
+        {  
+            $filter = [ 'pair' => "$this->curr"]; 
+        
+            $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
+            
+                $options = [ 'projection' => [ '_id' => 0 ]];
+                $mongoQ = new MongoDB\Driver\Query($filter, $options);
+                $mongoCurs = $mongoConn->executeQuery('test.History', $mongoQ);
+                //var_dump($mongoCurs->toArray());
+        
+                foreach($mongoCurs as $rec)
+                {
+                    if( $rec->status != "complete")
+                    {
+                        $return["message"] = "trades still active";
+                        $return["status"] = false;
+ 
+                    }
+                   
+                }        
+        }
+        catch (Exception $e) 
+        {
+            $return["status"] = FALSE;
+            $return["message"] = $e->getMessage();
+        }
+      
+        return($return);
+    }
+    
+    public function updateHistory()
+    {
+        $return["status"] = TRUE;
+        $return["message"] = "success";
+
+        try
+        {
+            $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
+            $bulk = new MongoDB\Driver\BulkWrite;
+
+           $filter = [ 'pair' => "$this->curr" ];
+           
+           $update = array("pair" =>  $this->curr,
+                            "expected_pl" =>  $this->profit,
+                            "actual_pl" => "0",
+                            "start_date" => $this->monDate->format('Y-m-d H:i'),
+                            "status" => "active");
+            try
+            {
+                $bulk->update($filter, [ '$set' => $update], ['multi' => true, 'upsert' => true] );
+                $result = $mongoConn->executeBulkWrite('test.History', $bulk);
+
+                //var_dump( $result);
+                if( $result->getModifiedCount() == 0 && $result->getUpsertedCount() == 0 )
+                {       
+                    $return["status"] = FALSE;
+                    $return["message"] = "update history failed";
+                }
+            }
+            catch (Exception $e) 
+            {
+            //$retInfo["status"] = FALSE;
+            print $e->getMessage();
+            }
+        } 
+        catch (Exception $e) 
+        {
+            //$retInfo["status"] = FALSE;
+            print $e->getMessage();
+        }
+    }
+
+   abstract public function setOrderValues( );
+ 
+   abstract public function updateDB($auto);
    
  }
+
+
+class SupportResist extends Trade {
+    
+    public function setOrderValues( )
+    {
+            $dec = ( $this->quotes['High'] > 100 ? 2 : 4);
+            $this->buyPrice = round( $this->quotes['High'], $dec, PHP_ROUND_HALF_UP );
+            $this->sellPrice = round( $this->quotes['Low'], $dec, PHP_ROUND_HALF_DOWN );
+            $dist = ( $this->buyPrice - $this->sellPrice ) * $this->percent;
+    
+            switch( $this->curr )
+            {
+                case "EUR_AUD":
+                    $this->units = round($this->profit/($dist * $this->dollarAsk));
+                  break;
+                case "EUR_JPY":
+                case "GBP_JPY":
+                    $this->units = round($this->profit/( $dist * (1/$this->dollarAsk)));
+                  break;
+                case "GBP_USD":
+                case "NZD_USD":
+                    $this->units = round($this->profit/$dist);
+                  break;
+                case "USD_CAD":
+                    $this->units = round($this->profit/($dist * (1/($this->buyPrice + $dist))));
+                  break;
+            }
+
+            $this->units++;
+            $this->buyStopLoss = round( $this->buyPrice - $dist,  $dec, PHP_ROUND_HALF_DOWN);                
+            $this->buyTakeProfit = round( $this->buyPrice + $dist, $dec, PHP_ROUND_HALF_UP);
+            $this->sellStopLoss =  round( $this->sellPrice + $dist,  $dec, PHP_ROUND_HALF_UP);
+            $this->sellTakeProfit = round( $this->sellPrice - $dist, $dec, PHP_ROUND_HALF_DOWN);
+            date_default_timezone_set("America/New_York");
+            $this->expDate = new DateTime();            
+            $this->expDate->add(new DateInterval('P7D'));
+     
+        /*print $this->expDate->format('Y-m-d H:i'); 
+        echo "<br>";
+        print "buy/sell $this->units";    
+        echo "<br>";
+        print "buy $this->buyPrice tp $this->buyTakeProfit sl $this->buyStopLoss";
+        echo "<br>";
+        print " sell $this->sellPrice tp $this->sellTakeProfit sl $this->sellStopLoss";
+          */         
+    }
+
+    
+    public function updateDB($auto)
+    {
+        
+        $dec = ($this->buyPrice > 100 ? 2 : 4);
+        $dist = round( $this->buyPrice - $this->sellPrice, $dec);
+        $retInfo = [];
+        
+         try 
+        {
+        
+        $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
+        $bu_bulk = new MongoDB\Driver\BulkWrite;
+        $su_bulk = new MongoDB\Driver\BulkWrite;
+        
+        $update = array("units" =>  $this->units, 
+                        "strategy" => "SupRes",
+                        "pips" => $dist,
+                        "mon_date" => $this->monDate->format('Y-m-d H:i'), 
+                        "auto" => ( $auto ? "yes" : "no") );
+       
+       
+        $buy_upd = array("account" =>$this->acct,
+                         "pair" => $this->curr,             
+                         "side" => "buy");
+        
+        $bu_bulk->update($buy_upd, [ '$set' => $update]);
+        $result = $mongoConn->executeBulkWrite('test.Trades', $bu_bulk);
+        
+        if( $result->getModifiedCount() == 0 )
+        {
+            //print "buy rec not found ";
+            
+            $buy_ins = array("pair" => $this->curr, 
+                        "account" =>$this->acct, 
+                       "units" =>  $this->units, 
+                       "side" => "buy",
+                       "strategy" => "SupRes",
+                       "pips" => $dist,
+                       "mon_date" => $this->monDate->format('Y-m-d H:i'), 
+                       "auto" => ( $auto ? "yes" : "no") );
+                   
+            $bi_bulk = new MongoDB\Driver\BulkWrite; 
+            $bi_bulk->insert($buy_ins);
+            $result = $mongoConn->executeBulkWrite('test.Trades', $bi_bulk);
+        
+        }
+        
+
+        $sell_upd = array("account" =>$this->acct,
+                         "pair" => $this->curr,             
+                         "side" => "sell");
+         
+
+        $su_bulk->update($sell_upd, [ '$set' => $update]);
+        $result = $mongoConn->executeBulkWrite('test.Trades', $su_bulk);
+        
+        if( $result->getModifiedCount() == 0 )
+        {
+            //print "sell rec not found ";
+            
+            $sell_ins = array("pair" => $this->curr, 
+                        "account" =>$this->acct, 
+                       "units" =>  $this->units, 
+                       "side" => "sell",
+                       "strategy" => "SupRes",
+                       "pips" => $dist,
+                       "mon_date" => $this->monDate->format('Y-m-d H:i'),
+                       "auto" => ( $auto ? "yes" : "no") );
+                  
+            $si_bulk = new MongoDB\Driver\BulkWrite; 
+            $si_bulk->insert($sell_ins);
+            $result = $mongoConn->executeBulkWrite('test.Trades', $si_bulk);
+        }
+    }
+    catch (Exception $e) 
+    {
+        $retInfo["status"] = FALSE;
+        $retInfo["message"] = $e->getMessage();
+    }
+
+    
+    
+    }
+}
 
 class TradeRange extends Trade {
 
@@ -481,14 +656,14 @@ class TradeRange extends Trade {
         $this->getOpenPrice = TRUE;        
     }
     
-    public function setOrderValues( $profit )
+    public function setOrderValues( )
     {
         $dec = ($this->quotes['High'] > 100 ? 2 : 4);
         $dist = round( ($this->quotes['High'] - $this->quotes['Low'])/2, $dec);
         $this->buyPrice = round( $this->quotes['Open'] + $dist,$dec);
         $this->sellPrice = round( $this->quotes['Open'] - $dist, $dec);
 
-        $risk = $profit;
+        $risk = $this->profit;
             
         switch( $this->curr )
         {
@@ -601,135 +776,4 @@ class TradeRange extends Trade {
     }
 }
 
-class SupportResist extends Trade {
-    
-    public function setOrderValues( $profit )
-    {
-            $dec = ( $this->quotes['High'] > 100 ? 2 : 4);
-            $this->buyPrice = round( $this->quotes['High'], $dec, PHP_ROUND_HALF_UP );
-            $this->sellPrice = round( $this->quotes['Low'], $dec, PHP_ROUND_HALF_DOWN );
-            $dist = ( $this->buyPrice - $this->sellPrice ) * $this->percent;
-    
-            switch( $this->curr )
-            {
-                case "EUR_AUD":
-                    $this->units = round($profit/($dist * $this->dollarAsk));
-                  break;
-                case "EUR_JPY":
-                case "GBP_JPY":
-                    $this->units = round($profit/( $dist * (1/$this->dollarAsk)));
-                  break;
-                case "GBP_USD":
-                case "NZD_USD":
-                    $this->units = round($profit/$dist);
-                  break;
-                case "USD_CAD":
-                    $this->units = round($profit/($dist * (1/($this->buyPrice + $dist))));
-                  break;
-            }
-
-            $this->units++;
-            $this->buyStopLoss = round( $this->buyPrice - $dist,  $dec, PHP_ROUND_HALF_DOWN);                
-            $this->buyTakeProfit = round( $this->buyPrice + $dist, $dec, PHP_ROUND_HALF_UP);
-            $this->sellStopLoss =  round( $this->sellPrice + $dist,  $dec, PHP_ROUND_HALF_UP);
-            $this->sellTakeProfit = round( $this->sellPrice - $dist, $dec, PHP_ROUND_HALF_DOWN);
-            date_default_timezone_set("America/New_York");
-            $this->expDate = new DateTime();            
-            $this->expDate->add(new DateInterval('P7D'));
-     
-        /*print $this->expDate->format('Y-m-d H:i'); 
-        echo "<br>";
-        print "buy/sell $this->units";    
-        echo "<br>";
-        print "buy $this->buyPrice tp $this->buyTakeProfit sl $this->buyStopLoss";
-        echo "<br>";
-        print " sell $this->sellPrice tp $this->sellTakeProfit sl $this->sellStopLoss";
-          */         
-    }
-
-    
-    public function updateDB($auto)
-    {
-        
-        $dec = ($this->buyPrice > 100 ? 2 : 4);
-        $dist = round( $this->buyPrice - $this->sellPrice, $dec);
-        $retInfo = [];
-        
-         try 
-        {
-        
-        $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
-        $bu_bulk = new MongoDB\Driver\BulkWrite;
-        $su_bulk = new MongoDB\Driver\BulkWrite;
-        
-        $update = array("units" =>  $this->units, 
-                        "strategy" => "SupRes",
-                        "pips" => $dist,
-                        "mon_date" => $this->monDate->format('Y-m-d H:i'), 
-                        "auto" => ( $auto ? "yes" : "no") );
-       
-       
-        $buy_upd = array("account" =>$this->acct,
-                         "pair" => $this->curr,             
-                         "side" => "buy");
-        
-        $bu_bulk->update($buy_upd, [ '$set' => $update]);
-        $result = $mongoConn->executeBulkWrite('test.Trades', $bu_bulk);
-        
-        if( $result->getModifiedCount() == 0 )
-        {
-            //print "buy rec not found ";
-            
-            $buy_ins = array("pair" => $this->curr, 
-                        "account" =>$this->acct, 
-                       "units" =>  $this->units, 
-                       "side" => "buy",
-                       "strategy" => "SupRes",
-                       "pips" => $dist,
-                       "mon_date" => $this->monDate->format('Y-m-d H:i'), 
-                       "auto" => ( $auto ? "yes" : "no") );
-                   
-            $bi_bulk = new MongoDB\Driver\BulkWrite; 
-            $bi_bulk->insert($buy_ins);
-            $result = $mongoConn->executeBulkWrite('test.Trades', $bi_bulk);
-        
-        }
-        
-
-        $sell_upd = array("account" =>$this->acct,
-                         "pair" => $this->curr,             
-                         "side" => "sell");
-         
-
-        $su_bulk->update($sell_upd, [ '$set' => $update]);
-        $result = $mongoConn->executeBulkWrite('test.Trades', $su_bulk);
-        
-        if( $result->getModifiedCount() == 0 )
-        {
-            //print "sell rec not found ";
-            
-            $sell_ins = array("pair" => $this->curr, 
-                        "account" =>$this->acct, 
-                       "units" =>  $this->units, 
-                       "side" => "sell",
-                       "strategy" => "SupRes",
-                       "pips" => $dist,
-                       "mon_date" => $this->monDate->format('Y-m-d H:i'),
-                       "auto" => ( $auto ? "yes" : "no") );
-                  
-            $si_bulk = new MongoDB\Driver\BulkWrite; 
-            $si_bulk->insert($sell_ins);
-            $result = $mongoConn->executeBulkWrite('test.Trades', $si_bulk);
-        }
-    }
-    catch (Exception $e) 
-    {
-        $retInfo["status"] = FALSE;
-        $retInfo["message"] = $e->getMessage();
-    }
-
-    
-    
-    }
-}   
   

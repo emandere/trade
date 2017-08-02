@@ -93,6 +93,7 @@ if( sizeof($_POST) > 0 )
                 document.getElementById("start").disabled = disable;
                 document.getElementById("end").disabled = disable;
                 document.getElementById("acct").disabled = disable;
+                document.getElementById("percent").disabled = disable;
                 }
                 
                 window.onload = disable_all( document.getElementById("auto").checked);
