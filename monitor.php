@@ -1,5 +1,6 @@
 <?php
 
+include 'oandaTO.php';
    
 class TradeMonitor 
  {
@@ -222,47 +223,53 @@ function processInput()
        $second = fgets($fh);            
        fclose($fh);
            
-       if( $_POST["Acct"] == 'ALL' )
-       {
-           print("Check All Accounts");
-       }
-       else
-       {
-            $acct = ( $_POST["Acct"] == 'Primary' ? $primary : $second );
-       }
        
-       if( $mongo && $tok && $acct )
+       if( $mongo && $tok && $primary && $second )
        {
            $info = array("token" => $tok, 
-                         "acct" => $acct,
+                         "acct1" => $primary,
+                         "acct2" => $second,
                          "mongo" => $mongo );
            
+          
+           $Oanda = new oandaTO($info);
+           
+           //print_r( $Oanda->getTrades("GBP_USD") );
+           //print_r( $Oanda->getTrades("NZD_USD") );
+           
+           
            //getOrders( $_POST["Pair"], $info);
-           getHistory( $_POST["Pair"], $info);
-           /*switch ($_POST["Pair"]) 
+           //getHistory( $_POST["Pair"], $info);
+           switch ($_POST["Pair"]) 
             {
               case "EA":
-                 UpdateTrades("EUR_AUD", $info);
+                $Oanda->getHistory("EUR_AUD"); 
+                //UpdateTrades("EUR_AUD", $info);
                break;
               case "EJ":
-                 UpdateTrades("EUR_JPY", $info);
+                $Oanda->getHistory("EUR_JPY"); 
+                //UpdateTrades("EUR_JPY", $info);
                break;
               case "GJ":
-                 UpdateTrades("GBP_JPY", $info);
+                 $Oanda->getHistory("GBP_JPY"); 
+                 //UpdateTrades("GBP_JPY", $info);
                break;
               case "GU":
-                 UpdateTrades("GBP_USD", $info);
+                  $Oanda->getHistory("GBP_USD");
+                 //UpdateTrades("GBP_USD", $info);
                break;
               case "NU":
-                 UpdateTrades("NZD_USD", $info);
+                  $Oanda->getHistory("NZD_USD");
+                 //UpdateTrades("NZD_USD", $info);
                break;
               case "UC":
-                UpdateTrades("USD_CAD", $info);
+                  $Oanda->getHistory("USD_CAD");
+                //UpdateTrades("USD_CAD", $info);
                break;
               case "ALL":
-                UpdateTrades("ALL", $info);
+                //UpdateTrades("ALL", $info);
                break;
-           }*/
+           }
        }
     }
     else

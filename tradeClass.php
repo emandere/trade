@@ -11,7 +11,158 @@
  *
  * @author user
  */
-  abstract class Trade
+class HistoryTable 
+{  
+    private $curr;
+    private $startDate;
+    private $expectedPL;
+    private $actualPL;
+    private $status;
+    private $mongo;
+    private $found;
+    
+    public function __construct($pair, $info)
+    {
+        $this->curr = $pair;
+        $this->mongo = chop($info["mongo"]);
+        $this->found = false;
+      
+        $this->readHistory();
+    }
+    
+    public function readHistory()
+    {
+        $return["status"] = TRUE;
+        $return["message"] = "success";
+        
+        try
+        {  
+            $filter = [ 'pair' => "$this->curr"]; 
+        
+            $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
+            
+                $options = [ 'projection' => [ '_id' => 0 ]];
+                $mongoQ = new MongoDB\Driver\Query($filter, $options);
+                $mongoCurs = $mongoConn->executeQuery('test.History', $mongoQ);
+                //var_dump($mongoCurs->toArray());
+        
+                foreach($mongoCurs as $rec)
+                {
+                    $this->startDate = $rec->start_date;
+                    $this->expectedPL = $rec->expected_pl;
+                    $this->actualPL = $rec->actual_pl;
+                    $this->status = $rec->status;
+                    $this->found = true;
+                }
+               
+        }
+        catch (Exception $e) 
+        {
+            $return["status"] = FALSE;
+            $return["message"] = $e->getMessage();
+            print $e->getMessage();
+            
+        }
+      
+        return($return);
+    }
+    
+    public function getStatus()
+    {
+        return($this->status);
+    }
+
+    public function isFound()
+    {
+        return($this->found);
+    }
+    
+    public function setStatus( $value )
+    {
+        $this->status = $value;
+    }
+
+    public function getStartDate()
+    {
+        return($this->startDate);
+    }
+
+    public function setStartDate( $value )
+    {
+        $this->startDate = $value;
+    }
+
+    public function getExpected()
+    {
+        return($this->expectedPL);
+    }
+    
+    public function setExpected( $value )
+    {
+        $this->expectedPL = $value;
+    }
+    
+    public function getActual()
+    {
+        return($this->actualPL);
+    }
+    
+    public function setActual( $value )
+    {
+       $this->actualPL = $value;
+    }
+   
+     public function updateHistory()
+    {
+        $return["status"] = TRUE;
+        $return["message"] = "success";
+
+        try
+        {
+            $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
+            $bulk = new MongoDB\Driver\BulkWrite;
+
+           $filter = [ 'pair' => "$this->curr" ];
+           
+           $update = array( "pair" =>  $this->curr,
+                            "expected_pl" =>  $this->expectedPL,
+                            "actual_pl" => $this->actualPL,
+                            "start_date" => $this->startDate,
+                            "status" => $this->status );
+/*                      $update = array( "pair" =>  $this->curr,
+                            "expected_pl" =>  $this->expectedPL,
+                            "actual_pl" => $this->,
+                            "start_date" => $this->monDate->format('Y-m-d H:i'),
+                            "status" => "active");*/
+
+            try
+            {
+                $bulk->update($filter, [ '$set' => $update], ['multi' => true, 'upsert' => true] );
+                $result = $mongoConn->executeBulkWrite('test.History', $bulk);
+
+                //var_dump( $result);
+                if( $result->getModifiedCount() == 0 && $result->getUpsertedCount() == 0 )
+                {       
+                    $return["status"] = FALSE;
+                    $return["message"] = "update history failed";
+                }
+            }
+            catch (Exception $e) 
+            {
+            //$retInfo["status"] = FALSE;
+            print $e->getMessage();
+            }
+        } 
+        catch (Exception $e) 
+        {
+            //$retInfo["status"] = FALSE;
+            print $e->getMessage();
+        }
+    }
+
+}
+
+abstract class Trade
  {
     protected $curr;
     protected $buyPrice;
@@ -36,6 +187,7 @@
     protected $sendBuy;
     protected $sendSell;
     protected $profit;
+    protected $history;
     
     public function __construct($pair, $info)
     {
@@ -60,6 +212,7 @@
         $this->sendBuy = $info["buy"];
         $this->sendSell = $info["sell"];
         $this->profit = $info["profit"];
+        $this->history = new HistoryTable($this->curr, $info );
         
         /*$cvars = [ "curr" => $this->curr,
                     "acct1" => $this->acct1,
@@ -291,8 +444,6 @@
         $return = [];
    
         $return["status"] = TRUE;
-        $return["message"] = "success";
-        
         
         if( $dec == 4 )
         {
@@ -385,7 +536,7 @@
                 else
                 {
                    $this->sellTicket = $response->orderOpened->id;
-                   $return["message"] = "buy ticket = ".$this->buyTicket.", sell ticket = ".$this->sellTicket;
+                   
                }
 
             }
@@ -396,6 +547,11 @@
             }
         
             curl_close($ch);             
+        }
+        
+        if( $return["status"] )
+        {  
+            $return["message"] = "buy ticket = ".$this->buyTicket.", sell ticket = ".$this->sellTicket;
         }
         
         return $return;
@@ -433,82 +589,31 @@
 
     public function TransactionComplete()
     {
-        $return["status"] = TRUE;
-        $return["message"] = "complete";
         
-        try
-        {  
-            $filter = [ 'pair' => "$this->curr"]; 
-        
-            $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
-            
-                $options = [ 'projection' => [ '_id' => 0 ]];
-                $mongoQ = new MongoDB\Driver\Query($filter, $options);
-                $mongoCurs = $mongoConn->executeQuery('test.History', $mongoQ);
-                //var_dump($mongoCurs->toArray());
-        
-                foreach($mongoCurs as $rec)
-                {
-                    if( $rec->status != "complete")
-                    {
-                        $return["message"] = "trades still active";
-                        $return["status"] = false;
- 
-                    }
-                   
-                }        
-        }
-        catch (Exception $e) 
+        if( !$this->history->isFound() ||   
+            $this->history->getStatus() == "complete" )
         {
-            $return["status"] = FALSE;
-            $return["message"] = $e->getMessage();
+            $return["status"] = TRUE;
+            $return["message"] = "complete";
         }
-      
+        else
+        {
+            $return["message"] = "trades still active";
+            $return["status"] = false;
+        }
+        
         return($return);
     }
-    
-    public function updateHistory()
+
+    public function SetTransactionHistory()
     {
-        $return["status"] = TRUE;
-        $return["message"] = "success";
-
-        try
-        {
-            $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
-            $bulk = new MongoDB\Driver\BulkWrite;
-
-           $filter = [ 'pair' => "$this->curr" ];
-           
-           $update = array("pair" =>  $this->curr,
-                            "expected_pl" =>  $this->profit,
-                            "actual_pl" => "0",
-                            "start_date" => $this->monDate->format('Y-m-d H:i'),
-                            "status" => "active");
-            try
-            {
-                $bulk->update($filter, [ '$set' => $update], ['multi' => true, 'upsert' => true] );
-                $result = $mongoConn->executeBulkWrite('test.History', $bulk);
-
-                //var_dump( $result);
-                if( $result->getModifiedCount() == 0 && $result->getUpsertedCount() == 0 )
-                {       
-                    $return["status"] = FALSE;
-                    $return["message"] = "update history failed";
-                }
-            }
-            catch (Exception $e) 
-            {
-            //$retInfo["status"] = FALSE;
-            print $e->getMessage();
-            }
-        } 
-        catch (Exception $e) 
-        {
-            //$retInfo["status"] = FALSE;
-            print $e->getMessage();
-        }
+        $this->history->setExpected( $this->profit );
+        $this->history->setActual("0");
+        $this->history->setStartDate($this->monDate->format('Y-m-d H:i'));
+        $this->history->setStatus("active");
+        $this->history->updateHistory();
     }
-
+    
    abstract public function setOrderValues( );
  
    abstract public function updateDB($auto);
@@ -574,78 +679,38 @@ class SupportResist extends Trade {
         {
         
         $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
-        $bu_bulk = new MongoDB\Driver\BulkWrite;
-        $su_bulk = new MongoDB\Driver\BulkWrite;
+        $del = new MongoDB\Driver\BulkWrite;
+        //$su_bulk = new MongoDB\Driver\BulkWrite;
         
-        $update = array("units" =>  $this->units, 
-                        "strategy" => "SupRes",
-                        "pips" => $dist,
-                        "mon_date" => $this->monDate->format('Y-m-d H:i'), 
-                        "auto" => ( $auto ? "yes" : "no") );
-       
-       
-        $buy_upd = array("account" =>$this->acct,
-                         "pair" => $this->curr,             
-                         "side" => "buy");
+        $criteria = [ "pair" =>  $this->curr ]; 
+
+        $del->delete($criteria, [ "limit" => false ] );
+        $result = $mongoConn->executeBulkWrite('test.Orders', $del);
         
-        $bu_bulk->update($buy_upd, [ '$set' => $update]);
-        $result = $mongoConn->executeBulkWrite('test.Trades', $bu_bulk);
-        
-        if( $result->getModifiedCount() == 0 )
-        {
-            //print "buy rec not found ";
             
-            $buy_ins = array("pair" => $this->curr, 
-                        "account" =>$this->acct, 
-                       "units" =>  $this->units, 
-                       "side" => "buy",
-                       "strategy" => "SupRes",
-                       "pips" => $dist,
-                       "mon_date" => $this->monDate->format('Y-m-d H:i'), 
-                       "auto" => ( $auto ? "yes" : "no") );
+        $insert = array("pair" => $this->curr, 
+                         "buy_acct" => $this->acct1, 
+                         "sell_acct" => ( strlen($this->acct2) > 0 ? $this->acct2 : $this->acct1 ) ,
+                          "units" =>  $this->units, 
+                          "buy_price" =>  $this->buyPrice,
+                          "sell_price" =>  $this->sellPrice,
+                          "buy_sl" =>  $this->buyStopLoss,
+                          "buy_tp" =>  $this->buyTakeProfit,
+                          "sell_sl" =>  $this->sellStopLoss,
+                          "sell_tp" =>  $this->sellTakeProfit,
+                          "exp_profit" =>  $this->profit);
                    
-            $bi_bulk = new MongoDB\Driver\BulkWrite; 
-            $bi_bulk->insert($buy_ins);
-            $result = $mongoConn->executeBulkWrite('test.Trades', $bi_bulk);
+            $ins = new MongoDB\Driver\BulkWrite; 
+            $ins->insert($insert);
+            $result = $mongoConn->executeBulkWrite('test.Orders', $ins);
         
-        }
-        
-
-        $sell_upd = array("account" =>$this->acct,
-                         "pair" => $this->curr,             
-                         "side" => "sell");
-         
-
-        $su_bulk->update($sell_upd, [ '$set' => $update]);
-        $result = $mongoConn->executeBulkWrite('test.Trades', $su_bulk);
-        
-        if( $result->getModifiedCount() == 0 )
-        {
-            //print "sell rec not found ";
-            
-            $sell_ins = array("pair" => $this->curr, 
-                        "account" =>$this->acct, 
-                       "units" =>  $this->units, 
-                       "side" => "sell",
-                       "strategy" => "SupRes",
-                       "pips" => $dist,
-                       "mon_date" => $this->monDate->format('Y-m-d H:i'),
-                       "auto" => ( $auto ? "yes" : "no") );
-                  
-            $si_bulk = new MongoDB\Driver\BulkWrite; 
-            $si_bulk->insert($sell_ins);
-            $result = $mongoConn->executeBulkWrite('test.Trades', $si_bulk);
-        }
     }
     catch (Exception $e) 
     {
         $retInfo["status"] = FALSE;
         $retInfo["message"] = $e->getMessage();
     }
-
-    
-    
-    }
+   }
 }
 
 class TradeRange extends Trade {
