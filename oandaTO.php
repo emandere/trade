@@ -25,9 +25,8 @@ class oandaTO {
     private $secondOrders;
     private $pulledOrders;
 
-    private $primaryHistory;
-    private $secondHistory;
     private $hTable;
+    private $hPL;
     
     private $acct1;
     private $acct2;
@@ -35,8 +34,6 @@ class oandaTO {
     
     private $mongo;
    
-   // private $tickets;
-    
     public function __construct($info)
     {
         $this->auth = "Authorization: Bearer ".chop($info["token"]);
@@ -52,7 +49,14 @@ class oandaTO {
                           "GBP_USD" => NULL, 
                           "NZD_USD" => NULL,
                           "USD_CAD" => NULL ];
-    
+
+        $this->hPL =    [ "EUR_AUD" => NULL, 
+                          "EUR_JPY" => NULL,
+                          "GBP_JPY" => NULL, 
+                          "GBP_USD" => NULL, 
+                          "NZD_USD" => NULL,
+                          "USD_CAD" => NULL ];
+
         //print_r( $this->hTable );
     }
 
@@ -63,17 +67,123 @@ class oandaTO {
             $info["mongo"] = $this->mongo;
             $this->hTable[$pair] = new HistoryTable($pair, $info);
             
-            if( $this->hTable[$pair]->isFound() )
+            /*if( $this->hTable[$pair]->isFound() )
             {
                 print $this->hTable[$pair]->getStatus(); 
             }
             else
             {
                 print "history not found";
-            }
+            }*/
         }
         
+        if( $this->hTable[$pair]->isFound() )
+        {
+            $primaryHistory = NULL;
+            $secondHistory = NULL;
+            
+            if( $this->hPL[$pair] == NULL )
+            {
+            $url_1 = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct1."/transactions?instrument=".$pair;
+            $url_2 = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct2."/transactions?instrument=".$pair;
+            
+            $ch = curl_init($url_1);
+
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array($this->auth));    
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+            $result = curl_exec($ch);
+            //var_dump(json_decode($result));
+            
+            if( curl_error($ch) )
+            {
+                print curl_error($ch);
+            }
+            else
+            {
+              $primaryHistory = json_decode($result);
+              
+              $ch = curl_init($url_2);
+
+              curl_setopt($ch, CURLOPT_HTTPHEADER, array($this->auth));    
+              curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+              $result = curl_exec($ch);
+              //var_dump(json_decode($result));
+              
+              if( curl_error($ch) )
+              {
+                 print curl_error($ch_1);
+              }
+              else
+              {
+                $secondHistory = json_decode($result);
+        
+              }
+            }
+        
+        }
+        //print $this->hTable->getStartDate();
+        $startDate = DateTime::createFromFormat('Y-m-d H:i', $this->hTable[$pair]->getStartDate());
+        $realPL = 0;
+         
+        if( $primaryHistory != NULL && $secondHistory != NULL )
+        {
+         for( $i = 0; $i < count($primaryHistory->transactions); $i++ )
+         {
+              if( $primaryHistory->transactions[$i]->type == "TAKE_PROFIT_FILLED" || 
+                  $primaryHistory->transactions[$i]->type == "STOP_LOSS_FILLED" || 
+                  $primaryHistory->transactions[$i]->type == "TRADE_CLOSE") 
+              {
+                  if( strrpos( $primaryHistory->transactions[$i]->time, "T") == 10 ) 
+                  {        
+                        $sDate = sprintf( "%s %s", substr($primaryHistory->transactions[$i]->time , 0, 10), 
+                                             substr($primaryHistory->transactions[$i]->time, 11, 5 ) );
+
+                        $tempDate = DateTime::createFromFormat('Y-m-d H:i', $sDate);
+                        if( $tempDate >= $startDate )
+                        {
+                             $realPL += $primaryHistory->transactions[$i]->pl;
+                             $realPL += $primaryHistory->transactions[$i]->interest;
+                             
+                        }
+
+                    }
+               }    
+           }
+           
+           for( $i = 0; $i < count($secondHistory->transactions); $i++ )
+           {
+              if( $secondHistory->transactions[$i]->type == "TAKE_PROFIT_FILLED" || 
+                  $secondHistory->transactions[$i]->type == "STOP_LOSS_FILLED" || 
+                  $secondHistory->transactions[$i]->type == "TRADE_CLOSE" ) 
+              {
+                  if( $secondHistory->transactions[$i]->instrument == $pair && 
+                      strrpos( $secondHistory->transactions[$i]->time, "T") == 10 ) 
+                  {        
+                        $sDate = sprintf( "%s %s", substr($secondHistory->transactions[$i]->time , 0, 10), 
+                                             substr($secondHistory->transactions[$i]->time, 11, 5 ) );
+
+                        $tempDate = DateTime::createFromFormat('Y-m-d H:i', $sDate);
+                        if( $tempDate >= $startDate )
+                        {
+                             $realPL += $secondHistory->transactions[$i]->pl;
+                             $realPL += $secondHistory->transactions[$i]->interest;
+                        }
+
+                    }
+               }    
+           }
+            
+            $this->hPL[$pair] = round($realPL, 2, PHP_ROUND_HALF_UP);
+            $this->hTable[$pair]->setActual($this->hPL[$pair]);
+            $this->hTable[$pair]->updateHistory();
+        }
+           
+         
+        }
     }
+    
     
     public function getOrders($pair)
     {

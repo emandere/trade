@@ -233,7 +233,6 @@ function processInput()
            
           
            $Oanda = new oandaTO($info);
-           
            //print_r( $Oanda->getTrades("GBP_USD") );
            //print_r( $Oanda->getTrades("NZD_USD") );
            
