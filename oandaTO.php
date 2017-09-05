@@ -24,9 +24,9 @@ class oandaTO {
     private $primaryOrders;
     private $secondOrders;
     private $pulledOrders;
+    private $oTable;
 
     private $hTable;
-    private $hPL;
     
     private $acct1;
     private $acct2;
@@ -49,14 +49,10 @@ class oandaTO {
                           "GBP_USD" => NULL, 
                           "NZD_USD" => NULL,
                           "USD_CAD" => NULL ];
-
-        $this->hPL =    [ "EUR_AUD" => NULL, 
-                          "EUR_JPY" => NULL,
-                          "GBP_JPY" => NULL, 
-                          "GBP_USD" => NULL, 
-                          "NZD_USD" => NULL,
-                          "USD_CAD" => NULL ];
-
+        
+        $this->oTable = $this->hTable;
+        $this->hPL = $this->hTable;
+ 
         //print_r( $this->hTable );
     }
 
@@ -122,7 +118,7 @@ class oandaTO {
               }
             }
         
-        }
+        
         //print $this->hTable->getStartDate();
         $startDate = DateTime::createFromFormat('Y-m-d H:i', $this->hTable[$pair]->getStartDate());
         $realPL = 0;
@@ -179,9 +175,12 @@ class oandaTO {
             $this->hTable[$pair]->setActual($this->hPL[$pair]);
             $this->hTable[$pair]->updateHistory();
         }
-           
-         
-        }
+      }  
+       
+        return( $this->hTable[$pair] );
+      }
+    
+      
     }
     
     
@@ -189,7 +188,13 @@ class oandaTO {
     {
         $orders = [];
         
-        if( !$this->pulledOrders )
+        if( $this->oTable[$pair] == NULL )
+        {
+            $info["mongo"] = $this->mongo;
+            $this->oTable[$pair] = new OrdersTable($pair, $info);
+        }
+        
+        if( $this->oTable[$pair]->isFound() && !$this->pulledOrders )
         {
             $url_1 = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct1."/orders";
             $url_2 = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct2."/orders";
@@ -229,9 +234,7 @@ class oandaTO {
                 $this->pulledOrders = TRUE;
               }
             }
-        }
         
-        $j = 0;
         for( $i = 0; $i < count($this->primaryOrders->orders); $i++ )
         {
             if( $this->primaryOrders->orders[$i]->instrument == $pair )
@@ -243,9 +246,13 @@ class oandaTO {
                                 "stopLoss" => $this->primaryOrders->orders[$i]->stopLoss, 
                                 "takeProfit" => $this->primaryOrders->orders[$i]->takeProfit);
                
-              
-               $orders[$j] = $orderInfo;
-               $j++;
+               
+                if( $orderInfo["units"] == $this->oTable[$pair]->getUnits($orderInfo["side"]) && 
+                    $orderInfo["stopLoss"] == $this->oTable[$pair]->getStopLoss($orderInfo["side"]) && 
+                    $orderInfo["takeProfit"] == $this->oTable[$pair]->getTakeProfit($orderInfo["side"]) )
+                {
+                     $this->oTable[$pair]->setOrderTicket( $orderInfo["side"], $orderInfo["ticket"]); 
+                }
            }
         }
         
@@ -260,20 +267,31 @@ class oandaTO {
                                 "stopLoss" => $this->secondOrders->orders[$i]->stopLoss, 
                                 "takeProfit" => $this->secondOrders->orders[$i]->takeProfit);
                
-              
-               $orders[$j] = $orderInfo;
-               $j++;
+              if( $orderInfo["units"] == $this->oTable[$pair]->getUnits($orderInfo["side"]) && 
+                    $orderInfo["stopLoss"] == $this->oTable[$pair]->getStopLoss($orderInfo["side"]) && 
+                    $orderInfo["takeProfit"] == $this->oTable[$pair]->getTakeProfit($orderInfo["side"]) )
+                {
+                     $this->oTable[$pair]->setOrderTicket( $orderInfo["side"], $orderInfo["ticket"]); 
+                }
            }
         }
-    
-      return($orders);
+        
+        $this->getTrades($pair);
+     }
+      return($this->oTable[$pair]);
     }
     
     public function getTrades($pair)
     {
         $trades = [];
         
-        if( !$this->pulledTrades )
+        if( $this->oTable[$pair] == NULL )
+        {
+            $info["mongo"] = $this->mongo;
+            $this->oTable[$pair] = new OrdersTable($pair, $info);
+        }
+        
+        if( $this->oTable[$pair]->isFound() && !$this->pulledTrades )
         {
             $url_1 = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct1."/trades";
             $url_2 = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct2."/trades";
@@ -313,9 +331,6 @@ class oandaTO {
                 $this->pulledTrades = TRUE;
               }
             }
-        }
-        
-        $j = 0;
         for( $i = 0; $i < count($this->primaryTrades->trades); $i++ )
         {
             
@@ -326,11 +341,16 @@ class oandaTO {
                                 "side" => $this->primaryTrades->trades[$i]->side, 
                                 "ticket" => $this->primaryTrades->trades[$i]->id, 
                                 "stopLoss" => $this->primaryTrades->trades[$i]->stopLoss, 
-                                "takeProfit" => $this->primaryTrades->trades[$i]->takeProfit);
+                                "takeProfit" => $this->primaryTrades->trades[$i]->takeProfit, 
+                                "acct" => $this->acct1 );
                
-              
-               $trades[$j] = $tradeInfo;
-               $j++;
+                if( $tradeInfo["units"] == $this->oTable[$pair]->getUnits($tradeInfo["side"]) && 
+                    $tradeInfo["stopLoss"] == $this->oTable[$pair]->getStopLoss($tradeInfo["side"]) && 
+                    $tradeInfo["takeProfit"] == $this->oTable[$pair]->getTakeProfit($tradeInfo["side"]) )
+                {
+                     $this->oTable[$pair]->setTradeTicket( $tradeInfo["side"], $tradeInfo["ticket"]); 
+                }
+
            }
         }
         
@@ -343,15 +363,19 @@ class oandaTO {
                                 "side" => $this->secondTrades->trades[$i]->side, 
                                 "ticket" => $this->secondTrades->trades[$i]->id, 
                                 "stopLoss" => $this->secondTrades->trades[$i]->stopLoss, 
-                                "takeProfit" => $this->secondTrades->trades[$i]->takeProfit);
-               
-              
-               $trades[$j] = $tradeInfo;
-               $j++;
+                                "takeProfit" => $this->secondTrades->trades[$i]->takeProfit, 
+                                "acct" => $this->acct2 );
+                
+                if( $tradeInfo["units"] == $this->oTable[$pair]->getUnits($tradeInfo["side"]) && 
+                    $tradeInfo["stopLoss"] == $this->oTable[$pair]->getStopLoss($tradeInfo["side"]) && 
+                    $tradeInfo["takeProfit"] == $this->oTable[$pair]->getTakeProfit($tradeInfo["side"]) )
+                {
+                     $this->oTable[$pair]->setTradeTicket( $tradeInfo["side"], $tradeInfo["ticket"]); 
+                }
+
            }
         }
-    
-      return($trades);
+        }
     }
     
     }

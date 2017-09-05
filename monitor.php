@@ -242,28 +242,28 @@ function processInput()
            switch ($_POST["Pair"]) 
             {
               case "EA":
-                $Oanda->getHistory("EUR_AUD"); 
-                //UpdateTrades("EUR_AUD", $info);
+                //$Oanda->getHistory("EUR_AUD"); 
+                UpdateTrades("EUR_AUD", $info, $Oanda);
                break;
               case "EJ":
-                $Oanda->getHistory("EUR_JPY"); 
-                //UpdateTrades("EUR_JPY", $info);
+                //$Oanda->getHistory("EUR_JPY"); 
+                UpdateTrades("EUR_JPY", $info, $Oanda);
                break;
               case "GJ":
-                 $Oanda->getHistory("GBP_JPY"); 
-                 //UpdateTrades("GBP_JPY", $info);
+                 //$Oanda->getHistory("GBP_JPY"); 
+                 UpdateTrades("GBP_JPY", $info, $Oanda);
                break;
               case "GU":
-                  $Oanda->getHistory("GBP_USD");
-                 //UpdateTrades("GBP_USD", $info);
+                  //$Oanda->getHistory("GBP_USD");
+                 UpdateTrades("GBP_USD", $info, $Oanda);
                break;
               case "NU":
-                  $Oanda->getHistory("NZD_USD");
-                 //UpdateTrades("NZD_USD", $info);
+                  //$Oanda->getHistory("NZD_USD");
+                 UpdateTrades("NZD_USD", $info, $Oanda);
                break;
               case "UC":
-                  $Oanda->getHistory("USD_CAD");
-                //UpdateTrades("USD_CAD", $info);
+                  //$Oanda->getHistory("USD_CAD");
+                UpdateTrades("USD_CAD", $info,$Oanda);
                break;
               case "ALL":
                 //UpdateTrades("ALL", $info);
@@ -307,48 +307,18 @@ function abbrevToPair( $abbrev )
     return($return);
 }
 
-/*function UpdateTrades( $pair, $info )
+function UpdateTrades( $pair, $info, $Oanda )
  {
-        $url = "https://api-fxtrade.oanda.com/v1/accounts/".chop($info['acct'])."/orders";
-        $auth = "Authorization: Bearer ".chop($info['token']);
-        $args = NULL;
-        
-        if( $pair != "ALL")
-        {
-            $args = sprintf("?instrument=%s", $pair); 
-        }
-        
-        $ch = ( $args ? curl_init($url.$args) : curl_init($url) );
-                    
-        curl_setopt($ch, CURLOPT_HTTPHEADER, array($auth));    
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        
-        $result = curl_exec($ch);
-        
-        if( curl_error($ch) )
-        {
-            print curl_error($ch);
-        }
-        else
-        {
-         $response = json_decode($result);
-         var_dump(json_decode($result));
-        
-          for( $i = 0; $i < count($response->trades); $i++ )
-           {
-               $monInfo = array("mongo" => $info['mongo'],
-                                "token" => $info['token'], 
-                                "acct" => $info['acct'], 
-                                "curr" => $response->trades[$i]->instrument,
-                                "units" => $response->trades[$i]->units, 
-                                "side" => $response->trades[$i]->side, 
-                                "ticket" => $response->trades[$i]->id, 
-                                "stopLoss" => $response->trades[$i]->stopLoss, 
-                                "takeProfit" => $response->trades[$i]->takeProfit);
-                
-               //print_r($monInfo);
-               
-               $monitor = new TradeMonitor($monInfo);             
+    $orders = $Oanda->getOrders($pair);
+    
+    print "buy order = ".$orders->getOrderTicket("buy");
+    print ", sell order = ".$orders->getOrderTicket("sell");
+
+    echo "<br>";
+    print "buy trade = ".$orders->getTradeTicket("buy");
+    print ", sell trade = ".$orders->getTradeTicket("sell");
+  
+/*               $monitor = new TradeMonitor($monInfo);             
                if( $monitor->readDB() )
                {
                    if( strtoupper($monitor->getStrat()) == 'RANGE' && $monitor->getQuotes() )
@@ -363,9 +333,9 @@ function abbrevToPair( $abbrev )
                }
            } 
         }
+    */
     
-    
- }*/
+ }
 
 function getOrders( $pair, $info )
  {

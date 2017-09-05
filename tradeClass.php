@@ -11,6 +11,177 @@
  *
  * @author user
  */
+class OrdersTable 
+{  
+    private $curr;
+    private $units;
+   
+    private $buyAcct;
+    private $buyPrice;
+    private $buyStopLoss;
+    private $buyTakeProfit;
+    private $buyOrder;
+    private $buyTrade;
+    private $buyProfit;
+    
+    
+    private $sellAcct;
+    private $sellPrice;
+    private $sellStopLoss;
+    private $sellTakeProfit;
+    private $sellOrder;
+    private $sellTrade;
+    private $sellProfit;
+    
+    private $mongo;
+    private $found;
+    
+    public function __construct($pair, $info)
+    {
+        $this->curr = $pair;
+        $this->mongo = chop($info["mongo"]);
+        $this->units= 0;
+   
+        $this->buyAcct = 0;
+        $this->buyPrice = 0;
+        $this->buyStopLoss = 0;
+        $this->buyTakeProfit = 0;
+        $this->buyOrder = 0;
+        $this->buyTrade = 0;
+        $this->buyProfit = 0;
+   
+        $this->sellAcct = 0;
+        $this->sellPrice = 0;
+        $this->sellStopLoss = 0;
+        $this->sellTakeProfit = 0;
+        $this->sellOrder = 0;
+        $this->sellTrade = 0;
+        $this->sellProfit = 0;
+    
+        $this->found = false;
+      
+        $this->readOrders();
+    }
+    
+    public function readOrders()
+    {
+        $return["status"] = TRUE;
+        $return["message"] = "success";
+        
+        try
+        {  
+            $filter = [ 'pair' => "$this->curr"]; 
+        
+            $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
+            
+                $options = [ 'projection' => [ '_id' => 0 ]];
+                $mongoQ = new MongoDB\Driver\Query($filter, $options);
+                $mongoCurs = $mongoConn->executeQuery('test.Orders', $mongoQ);
+                //var_dump($mongoCurs->toArray());
+        
+                foreach($mongoCurs as $rec)
+                {
+                    $this->units = $rec->units;
+   
+                    $this->buyAcct = $rec->buy_acct;
+                    $this->buyPrice = $rec->buy_price;
+                    $this->buyStopLoss = $rec->buy_sl;
+                    $this->buyTakeProfit = $rec->buy_tp;
+                    $this->buyProfit = $rec->buy_profit;
+
+                    $this->sellAcct = $rec->sell_acct;
+                    $this->sellPrice = $rec->sell_price;
+                    $this->sellStopLoss = $rec->sell_sl;
+                    $this->sellTakeProfit = $rec->sell_tp;
+                    $this->sellProfit = $rec->sell_profit;
+
+                    $this->found = true;
+                }
+               
+        }
+        catch (Exception $e) 
+        {
+            $return["status"] = FALSE;
+            $return["message"] = $e->getMessage();
+            print $e->getMessage();
+            
+        }
+      
+        return($return);
+    }
+    
+    public function getUnits()
+    {
+        return($this->units);
+    }
+    
+    public function getAcct($side)
+    {
+        return( $side == "buy" ? $this->buyAcct : $this->sellAcct );
+    }
+
+    public function getPrice($side)
+    {
+        return( $side == "buy" ? $this->buyPrice : $this->sellPrice );
+    }
+    
+    public function getStopLoss($side)
+    {
+        return( $side == "buy" ? $this->buyStopLoss : $this->sellStopLoss );
+    }
+
+    public function getTakeProfit($side)
+    {
+        return( $side == "buy" ? $this->buyTakeProfit : $this->sellTakeProfit );
+    }
+    
+    public function getExpProfit($side)
+    {
+        return( $side == "buy" ? $this->buyProfit : $this->sellProfit );
+    }
+    
+    public function isFound()
+    {
+        return($this->found);
+    }
+    
+    public function setOrderTicket($side, $value)
+    {
+        if( $side == "buy" )
+        {
+            $this->buyOrder = $value;
+        }
+        else
+        {
+            $this->sellOrder = $value;
+        }
+    }
+    
+    public function getOrderTicket($side)
+    {
+        return( $side == "buy" ? $this->buyOrder : $this->sellOrder );
+    }
+
+    
+    public function setTradeTicket($side, $value)
+    {
+        if( $side == "buy" )
+        {
+            $this->buyTrade = $value;
+        }
+        else
+        {
+            $this->sellTrade = $value;
+        }
+    }
+
+    public function getTradeTicket($side)
+    {
+        return( $side == "buy" ? $this->buyTrade : $this->sellTrade );
+    }
+
+}
+
 class HistoryTable 
 {  
     private $curr;
@@ -616,7 +787,7 @@ abstract class Trade
     
    abstract public function setOrderValues( );
  
-   abstract public function updateDB($auto);
+   abstract public function insertOrders($auto);
    
  }
 
@@ -668,7 +839,7 @@ class SupportResist extends Trade {
     }
 
     
-    public function updateDB($auto)
+    public function insertOrders($auto)
     {
         
         $dec = ($this->buyPrice > 100 ? 2 : 4);
@@ -698,7 +869,8 @@ class SupportResist extends Trade {
                           "buy_tp" =>  $this->buyTakeProfit,
                           "sell_sl" =>  $this->sellStopLoss,
                           "sell_tp" =>  $this->sellTakeProfit,
-                          "exp_profit" =>  $this->profit);
+                          "buy_profit" =>  $this->profit , 
+                          "sell_profit" =>  $this->profit);
                    
             $ins = new MongoDB\Driver\BulkWrite; 
             $ins->insert($insert);
@@ -769,7 +941,7 @@ class TradeRange extends Trade {
         */
     }    
     
-    public function updateDB($auto)
+    public function insertOrders($auto)
     {
         
         $dec = ($this->buyPrice > 100 ? 2 : 4);
