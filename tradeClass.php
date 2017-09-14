@@ -40,8 +40,7 @@ class OrdersTable
     {
         $this->curr = $pair;
         $this->mongo = chop($info["mongo"]);
-        $this->units= 0;
-   
+       
         $this->buyAcct = 0;
         $this->buyPrice = 0;
         $this->buyStopLoss = 0;
@@ -49,6 +48,7 @@ class OrdersTable
         $this->buyOrder = 0;
         $this->buyTrade = 0;
         $this->buyProfit = 0;
+        $this->buyUnits= 0;
    
         $this->sellAcct = 0;
         $this->sellPrice = 0;
@@ -57,7 +57,8 @@ class OrdersTable
         $this->sellOrder = 0;
         $this->sellTrade = 0;
         $this->sellProfit = 0;
-    
+        $this->sellUnits= 0;
+   
         $this->found = false;
       
         $this->readOrders();
@@ -81,7 +82,8 @@ class OrdersTable
         
                 foreach($mongoCurs as $rec)
                 {
-                    $this->units = $rec->units;
+                    $this->buyUnits = $rec->buy_units;
+                    $this->sellUnits = $rec->sell_units;
    
                     $this->buyAcct = $rec->buy_acct;
                     $this->buyPrice = $rec->buy_price;
@@ -110,9 +112,9 @@ class OrdersTable
         return($return);
     }
     
-    public function getUnits()
+    public function getUnits($side)
     {
-        return($this->units);
+        return( $side == "buy" ? $this->buyUnits : $this->sellUnits );
     }
     
     public function getAcct($side)
@@ -240,7 +242,7 @@ class HistoryTable
     
     public function getStatus()
     {
-        return($this->status);
+        return( strtoupper($this->status));
     }
 
     public function isFound()
@@ -250,7 +252,7 @@ class HistoryTable
     
     public function setStatus( $value )
     {
-        $this->status = $value;
+        $this->status = strtoupper($value);
     }
 
     public function getStartDate()
@@ -358,6 +360,8 @@ abstract class Trade
     protected $sendBuy;
     protected $sendSell;
     protected $profit;
+    protected $oldProfit;
+    
     protected $history;
     
     public function __construct($pair, $info)
@@ -384,6 +388,7 @@ abstract class Trade
         $this->sendSell = $info["sell"];
         $this->profit = $info["profit"];
         $this->history = new HistoryTable($this->curr, $info );
+        $this->oldProfit = 0;
         
         /*$cvars = [ "curr" => $this->curr,
                     "acct1" => $this->acct1,
@@ -395,7 +400,12 @@ abstract class Trade
         print_r($cvars);*/
     }
     
- 
+    public function setAllPrices( $Oanda )
+    {
+    
+        
+    }
+    
     public function getQuotes( $start, $end )
     {
       $return = [];
@@ -542,31 +552,7 @@ abstract class Trade
            
            if( $return["status"] ) 
            {    
-                $usd = strpos($this->curr, "USD");
-
-                if( $usd === FALSE )
-                {
-                    $base = substr($this->curr , 4, 3);
-
-                     switch($base)
-                     {
-                         case "AUD":
-                           $this->setDollarAsk("AUD_USD");
-                         break;
-                         case "JPY":
-                           $this->setDollarAsk("USD_JPY");
-                         break;
-                         case "GBP":
-                           $this->setDollarAsk("GBP_USD");
-                         break;
-                     }
-
-                     if( $this->dollarAsk == 0 )
-                     {
-                        $return["status"] = FALSE;
-                        $return["message"] = "error getting dollar ask price";
-                     }     
-                 }
+               $return = $this->setDollarAsk();
            }
         }           
    
@@ -574,33 +560,65 @@ abstract class Trade
     return($return);
    }
    
-    public function setDollarAsk( $currency )
+    public function setDollarAsk( )
     {
-       $url = "https://api-fxtrade.oanda.com/v1/prices?instruments=".$currency;
-       $ch = curl_init($url);    
-         
-       curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json' , $this->auth ));    
-       curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-       $result = curl_exec($ch);
+        $return["status"] = TRUE;
+        $return["message"] = "success";
 
-        if( curl_error($ch) )
+        $usd = strpos($this->curr, "USD"); 
+        $currency = "";
+            
+        if( $usd === FALSE )
         {
-          // print "error: ".curl_error($ch);    
+            $base = substr($this->curr , 4, 3);
+            
+            switch($base)
+            {
+                case "AUD":
+                    $currency = "AUD_USD";
+                   break;
+                case "JPY":
+                    $currency = "USD_JPY";
+                   break;
+                case "GBP":
+                    $currency = "GBP_USD";
+                   break;
+           }
         }
-        else
-        {    
-            //print "setDollarAsk() response: $result";          
-            $response= json_decode($result);
-            $this->dollarAsk = $response->prices[0]->ask;
-        }   
         
-        curl_close($ch);             
+        if( strlen($currency) > 0 )
+        {
+            $url = "https://api-fxtrade.oanda.com/v1/prices?instruments=".$currency;
+            $ch = curl_init($url);    
 
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json' , $this->auth ));    
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            $result = curl_exec($ch);
+
+             if( curl_error($ch) )
+             {
+                $return["status"] = FALSE;
+                $return["message"] = "error getting dollar ask price";
+             }
+             else
+             {    
+                 //print "setDollarAsk() response: $result";          
+                 $response= json_decode($result);
+                 $this->dollarAsk = $response->prices[0]->ask;
+             }   
+
+             curl_close($ch);             
+        }
+        
+        return($return);
     }  // end setDollarAsk()
    
     public function sendOrders( )
     {
         $dec = ( $this->buyPrice > 100 ? 2 : 4);       
+        $return["status"] = TRUE;
+        $return["message"] = "SUCCESS";
+
         $buy_url = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct1."/orders";
         
         if( strlen($this->acct2) > 0 )
@@ -612,48 +630,78 @@ abstract class Trade
             $sell_url = $buy_url;
         }
         
-        $return = [];
-   
-        $return["status"] = TRUE;
-        
         if( $dec == 4 )
         {
-          $bArgs = sprintf("instrument=%s&units=%d&side=buy&type=marketIfTouched&expiry=%d&price=%.4f"
-                        . "&stopLoss=%.4f&takeProfit=%.4f", 
-                          $this->curr, $this->units, $this->expDate->getTimestamp(), $this->buyPrice,
-                          $this->buyStopLoss, $this->buyTakeProfit);        
+            $mBuy = sprintf("units=%d&price=%.4f&stopLoss=%.4f&takeProfit=%.4f", 
+                             $this->units, $this->buyPrice, $this->buyStopLoss, $this->buyTakeProfit);        
         
-          
-          $sArgs = sprintf("instrument=%s&units=%d&side=sell&type=marketIfTouched&expiry=%d&price=%.4f"
-                        . "&stopLoss=%.4f&takeProfit=%.4f", 
-                          $this->curr, $this->units, $this->expDate->getTimestamp(), $this->sellPrice,
-                          $this->sellStopLoss, $this->sellTakeProfit);        
-          
+            $cBuy = sprintf("instrument=%s&side=buy&type=marketIfTouched&expiry=%d", 
+                          $this->curr, $this->expDate->getTimestamp());       
+            
+            $mSell = sprintf("units=%d&price=%.4f&stopLoss=%.4f&takeProfit=%.4f", 
+                             $this->units, $this->sellPrice, $this->sellStopLoss, $this->sellTakeProfit);        
+        
+            $cSell = sprintf("instrument=%s&side=sell&type=marketIfTouched&expiry=%d", 
+                          $this->curr, $this->expDate->getTimestamp());       
+            
         }
-        if( $dec == 2 )
+        else if( $dec == 2 )
         {
-          $bArgs = sprintf("instrument=%s&units=%d&side=buy&type=marketIfTouched&expiry=%d&price=%.2f"
-                        . "&stopLoss=%.2f&takeProfit=%.2f", 
-                          $this->curr, $this->units, $this->expDate->getTimestamp(), $this->buyPrice,
-                          $this->buyStopLoss, $this->buyTakeProfit);        
-
-          
-          $sArgs = sprintf("instrument=%s&units=%d&side=sell&type=marketIfTouched&expiry=%d&price=%.2f"
-                        . "&stopLoss=%.2f&takeProfit=%.2f", 
-                          $this->curr, $this->units, $this->expDate->getTimestamp(), $this->sellPrice,
-                          $this->sellStopLoss, $this->sellTakeProfit);        
-
-          
+            $mBuy = sprintf("units=%d&price=%.2f&stopLoss=%.2f&takeProfit=%.2f", 
+                             $this->units, $this->buyPrice, $this->buyStopLoss, $this->buyTakeProfit);        
+        
+            $cBuy = sprintf("instrument=%s&side=buy&type=marketIfTouched&expiry=%d", 
+                          $this->curr, $this->expDate->getTimestamp());       
+            
+            $mSell = sprintf("units=%d&price=%.2f&stopLoss=%.2f&takeProfit=%.2f", 
+                             $this->units, $this->sellPrice, $this->sellStopLoss, $this->sellTakeProfit);        
+        
+            $cSell = sprintf("instrument=%s&side=sell&type=marketIfTouched&expiry=%d", 
+                          $this->curr, $this->expDate->getTimestamp());       
         }
 
+        if( $this->buyTicket > 0 )
+        {
+           $buy_url = $buy_url."/".$this->buyTicket;
+           $bArgs = $mBuy;
+        }
+        else
+        {
+            $bArgs = $mBuy."&".$cBuy;
+        }
+        
+        if( $this->sellTicket > 0 )
+        {
+           $sell_url = $sell_url."/".$this->sellTicket;
+           $sArgs = $mSell;
+        }
+        else
+        {
+            $sArgs = $mSell."&".$cSell;
+        }
+        
+        /*print "$buy_url";
+        print "$bArgs";
+        echo "<br>";
+        print $sell_url;
+        print $sArgs;
+        */
         
         if( $this->sendBuy )
         {
             $ch = curl_init($buy_url);     
             $date = "X-Accept-Datetime-Format: UNIX";
+            $patch = "X-HTTP-Method-Override: PATCH";        
 
+            if( $this->buyTicket > 0 )
+            { 
+                curl_setopt($ch, CURLOPT_HTTPHEADER, array($date, $this->auth, $patch ));    
+            }
+            else
+            {
+                curl_setopt($ch, CURLOPT_HTTPHEADER, array($date, $this->auth));    
+            }
 
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array($date, $this->auth ));    
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch,CURLOPT_POST, true);
 
@@ -662,15 +710,15 @@ abstract class Trade
 
             if( !curl_error($ch) )
             {    
-                //print "SendOrders() response: $result";          
                 $response= json_decode($result);
-
+                //var_dump($response);
+                
                 if( isset($response->code) )
                 {
                     $return["status"] = FALSE;
                     $return["message"] = "error code for buy order ".$response->code;
                 }
-                else
+                else if( $this->buyTicket == 0 )
                 {
                     $this->buyTicket = $response->orderOpened->id;
                 }
@@ -688,8 +736,17 @@ abstract class Trade
         {
             $ch = curl_init($sell_url);     
             $date = "X-Accept-Datetime-Format: UNIX";
-        
-            curl_setopt($ch, CURLOPT_HTTPHEADER, array($date, $this->auth ));    
+            $patch = "X-HTTP-Method-Override: PATCH";        
+            
+            if( $this->sellTicket > 0 )
+            { 
+                curl_setopt($ch, CURLOPT_HTTPHEADER, array($date, $this->auth, $patch ));    
+            }
+            else
+            {
+                curl_setopt($ch, CURLOPT_HTTPHEADER, array($date, $this->auth));    
+            }
+            
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch,CURLOPT_POST, true);
                 
@@ -699,17 +756,18 @@ abstract class Trade
             if( !curl_error($ch) )
             {
                 $response = json_decode($result);
+                //var_dump($response);
+                
                 if( isset($response->code) )
                 {
                     $return["status"] = FALSE;
                     $return["message"] = "error code for sell order ".$response->code;
                 }
-                else
+                else if( $this->sellTicket == 0 )
                 {
                    $this->sellTicket = $response->orderOpened->id;
                    
                }
-
             }
             else
             {
@@ -862,7 +920,8 @@ class SupportResist extends Trade {
         $insert = array("pair" => $this->curr, 
                          "buy_acct" => $this->acct1, 
                          "sell_acct" => ( strlen($this->acct2) > 0 ? $this->acct2 : $this->acct1 ) ,
-                          "units" =>  $this->units, 
+                          "buy_units" =>  $this->units, 
+                          "sell_units" =>  $this->units, 
                           "buy_price" =>  $this->buyPrice,
                           "sell_price" =>  $this->sellPrice,
                           "buy_sl" =>  $this->buyStopLoss,
@@ -875,6 +934,130 @@ class SupportResist extends Trade {
             $ins = new MongoDB\Driver\BulkWrite; 
             $ins->insert($insert);
             $result = $mongoConn->executeBulkWrite('test.Orders', $ins);
+        
+    }
+    catch (Exception $e) 
+    {
+        $retInfo["status"] = FALSE;
+        $retInfo["message"] = $e->getMessage();
+    }
+   }
+}
+
+class MonitorTrade extends Trade {
+    
+    public function __construct($pair, $info)
+    {
+     
+        $this->curr = $pair;
+        $this->buyPrice = $info["buyPrice"];
+        $this->sellPrice = $info["sellPrice"];
+        $this->dollarAsk = 0;
+        $this->units = 0;
+        $this->buyTakeProfit = $info["buyTakeProfit"];
+        $this->sellTakeProfit = $info["sellTakeProfit"];
+        $this->buyStopLoss = $info["buyStopLoss"];
+        $this->sellStopLoss = $info["sellStopLoss"];
+        $this->expDate = 0;
+        $this->buyTicket = $info["buyTicket"];
+        $this->sellTicket = $info["sellTicket"];
+        $this->auth = "Authorization: Bearer ".chop($info["token"]);
+        $this->acct1 = chop($info["buyAcct"]);
+        $this->acct2 = ( $info["buyAcct"] != $info["sellAcct"] ? $info["sellAcct"] : ""); 
+        $this->getOpenPrice = FALSE;
+        $this->mongo = chop($info["mongo"]);   
+        $this->percent = 0;
+        $this->sendBuy = $info["buy"];
+        $this->sendSell = $info["sell"];
+        $this->profit = $info["profit"];
+       // $this->oldProfit = $info["old_profit"];
+        
+        $this->history = NULL;
+    }
+
+    public function setOrderValues( )
+    {
+            $return = $this->setDollarAsk();
+            
+            if( $return["status"] == TRUE )
+            {    
+                $dec = ( $this->buyPrice > 100 ? 2 : 4);
+                $dist = ( $this->buyPrice - $this->buyStopLoss );
+
+                switch( $this->curr )
+                {
+                    case "EUR_AUD":
+                        $this->units = round($this->profit/($dist * $this->dollarAsk));
+                      break;
+                    case "EUR_JPY":
+                    case "GBP_JPY":
+                        $this->units = round($this->profit/( $dist * (1/$this->dollarAsk)));
+                      break;
+                    case "GBP_USD":
+                    case "NZD_USD":
+                        $this->units = round($this->profit/$dist);
+                      break;
+                    case "USD_CAD":
+                        $this->units = round($this->profit/($dist * (1/($this->buyPrice + $dist))));
+                      break;
+                }
+
+                $this->units++;
+                date_default_timezone_set("America/New_York");
+                $this->expDate = new DateTime();            
+                $this->expDate->add(new DateInterval('P7D'));
+            }
+         }
+
+    
+    public function insertOrders($auto)
+    {
+        
+        $dec = ($this->buyPrice > 100 ? 2 : 4);
+        $dist = round( $this->buyPrice - $this->sellPrice, $dec);
+        $retInfo = [];
+        
+         try 
+        {
+        
+        $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
+        $ins = new MongoDB\Driver\BulkWrite; 
+            
+        $criteria = [ "pair" =>  $this->curr ]; 
+           
+        $buy_update = array("pair" => $this->curr, 
+                            "buy_acct" => $this->acct1, 
+                            "buy_units" =>  $this->units, 
+                            "buy_price" =>  $this->buyPrice,
+                            "buy_sl" =>  $this->buyStopLoss,
+                            "buy_tp" =>  $this->buyTakeProfit,
+                            "buy_profit" =>  $this->profit);
+        
+        $sell_update = array("pair" => $this->curr, 
+                            "sell_acct" => ( strlen($this->acct2) > 0 ? $this->acct2 : $this->acct1 ) ,
+                            "sell_units" =>  $this->units, 
+                            "sell_price" =>  $this->sellPrice,
+                            "sell_sl" =>  $this->sellStopLoss,
+                            "sell_tp" =>  $this->sellTakeProfit,
+                            "sell_profit" =>  $this->profit);
+        
+        $update = [];
+        
+        if( $this->sendBuy && $this->sendSell )
+        {
+            $update = array_merge( $buy_update, $sell_update );
+        }
+        else if( $this->sendBuy )
+        {
+            $update = $buy_update;
+        }
+        else
+        {
+            $update = $sell_update;
+        }
+        
+        $ins->update($criteria, [ '$set' => $update], ['multi' => true, 'upsert' => true]);
+        $result = $mongoConn->executeBulkWrite('test.Orders', $ins);
         
     }
     catch (Exception $e) 
