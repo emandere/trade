@@ -36,19 +36,28 @@ function processInput()
               case "GU":
               case "NU":
               case "UC":
-                UpdateTrades($_POST["Pair"], $info,$Oanda);
+                $final[0] = UpdateTrades($_POST["Pair"], $info,$Oanda);
                break;
               case "ALL":
-                //UpdateTrades("ALL", $info);
+                $final[0] = UpdateTrades("EA", $info,$Oanda);
+                $final[1] = UpdateTrades("EJ", $info,$Oanda);
+                $final[2] = UpdateTrades("GJ", $info,$Oanda);
+                $final[3] = UpdateTrades("GU", $info,$Oanda);
+                $final[4] = UpdateTrades("NU", $info,$Oanda);
+                $final[5] = UpdateTrades("UC", $info,$Oanda);
                break;
            }
-       }
+       
+        }
     }
     else
     {
-        print "error opening $infile";
+        $temp["status"] =  "false"; 
+        $temp["message"] = "ERROR: can't open infile";
+        $final[0] = temp;
     }
 
+    print json_encode($final);
 }
 
 function abbrevToPair( $abbrev )
@@ -112,6 +121,7 @@ function CheckTradeComplete( $pair, $Oanda )
 
 function UpdateTrades( $pair, $info, $Oanda )
  {
+    $result = [];
     $curr = abbrevToPair($pair);
     CheckTradeComplete( $curr, $Oanda );
     
@@ -128,15 +138,15 @@ function UpdateTrades( $pair, $info, $Oanda )
             $tradeProfit = $Oanda->getOrders($curr)->getExpProfit("buy");
         }
         
-        if( $Oanda->getOrders($curr)->getTradeTicket("buy") > 0 )
+        if( $Oanda->getOrders($curr)->getTradeTicket("sell") > 0 )
         {
             $sold = true;
             $tradeProfit += $Oanda->getOrders($curr)->getExpProfit("sell");
         }    
         
-        $tradeProfit += $Oanda->getHistory($curr)->getActual();
-        $tradeProfit = $Oanda->getHistory($curr)->getExpected() - $tradeProfit;
-        
+        //$tradeProfit += $Oanda->getHistory($curr)->getActual();
+        //$tradeProfit = $Oanda->getHistory($curr)->getExpected() - $tradeProfit;
+        $tradeProfit += $Oanda->getHistory($curr)->getExpected() - $Oanda->getHistory($curr)->getActual();
 
         $input["profit"] = $tradeProfit;
 
@@ -172,30 +182,23 @@ function UpdateTrades( $pair, $info, $Oanda )
         {
             $mon = new MonitorTrade( $curr, array_merge( $info, $input ));
             $mon->setOrderValues();
-            $mon->sendOrders();
-            $mon->insertOrders(true);
-           // print_r($mon);
+            $reesult = $mon->sendOrders();
+            if( $result["status"] )
+            {
+                $mon->insertOrders(true);
+            }
         }
         
     }
+    else
+    {
+        $result["status"] = "true";
+        $result["message"] = "complete";
+    }
   
-/*               $monitor = new TradeMonitor($monInfo);             
-               if( $monitor->readDB() )
-               {
-                   if( strtoupper($monitor->getStrat()) == 'RANGE' && $monitor->getQuotes() )
-                   {
-                        $monitor->sendOrder();
-                   }
-                   else if( strtoupper($monitor->getStrat()) == "SUPRES")
-                   {
-                       $monitor->sendOrder();
-                   }
-                   
-               }
-           } 
-        }
-    */
-    
+    $result["future"] = " ";
+    $result["pair"] = $pair;
+    return($result);
  }
 
  /* get open trades for oanda, either for specific or all currencies.

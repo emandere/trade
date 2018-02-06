@@ -27,7 +27,8 @@ class oandaTO {
     private $oTable;
 
     private $hTable;
-    
+    private $hPL;
+   
     private $acct1;
     private $acct2;
     private $auth;
@@ -40,8 +41,10 @@ class oandaTO {
         $this->mongo = chop($info["mongo"]);
         $this->acct1 = chop($info["acct1"]);
         $this->acct2 = chop($info["acct2"]);
+        
         $this->pulledOrders =  FALSE;
         $this->pulledTrades =  FALSE;
+        $this->pulledHistory =  FALSE;
         
         $this->hTable = [ "EUR_AUD" => NULL, 
                           "EUR_JPY" => NULL,
@@ -55,22 +58,33 @@ class oandaTO {
  
         //print_r( $this->hTable );
     }
-
+    
+    public function getStatus($pair)
+    {
+        $result["status"] = TRUE;
+        $result["message"] = "SUCCESS";
+        
+        $temp = "error getting ";
+        
+        if( $this->hTable[$pair] == NULL )
+        {
+            $temp = $temp."history ";
+        }
+        
+        if( $this->oTable[$pair] == NULL )
+        {
+            $temp = $temp."orders ";
+        }
+        
+        
+    }
+    
     public function getHistory($pair)
     {
         if( $this->hTable[$pair] == NULL )
         {
             $info["mongo"] = $this->mongo;
             $this->hTable[$pair] = new HistoryTable($pair, $info);
-            
-            /*if( $this->hTable[$pair]->isFound() )
-            {
-                print $this->hTable[$pair]->getStatus(); 
-            }
-            else
-            {
-                print "history not found";
-            }*/
         }
         
         if( $this->hTable[$pair]->isFound() )
@@ -114,7 +128,7 @@ class oandaTO {
               else
               {
                 $secondHistory = json_decode($result);
-        
+                $this->pulledHistory =  TRUE;
               }
             }
         

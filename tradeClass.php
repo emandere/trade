@@ -387,8 +387,8 @@ abstract class Trade
         $this->sendBuy = $info["buy"];
         $this->sendSell = $info["sell"];
         $this->profit = $info["profit"];
-        $this->history = new HistoryTable($this->curr, $info );
         $this->oldProfit = 0;
+        $this->history = NULL;
         
         /*$cvars = [ "curr" => $this->curr,
                     "acct1" => $this->acct1,
@@ -399,13 +399,7 @@ abstract class Trade
          
         print_r($cvars);*/
     }
-    
-    public function setAllPrices( $Oanda )
-    {
-    
-        
-    }
-    
+
     public function getQuotes( $start, $end )
     {
       $return = [];
@@ -590,7 +584,7 @@ abstract class Trade
         {
             $url = "https://api-fxtrade.oanda.com/v1/prices?instruments=".$currency;
             $ch = curl_init($url);    
-
+print $this->auth;
             curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json' , $this->auth ));    
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $result = curl_exec($ch);
@@ -602,7 +596,7 @@ abstract class Trade
              }
              else
              {    
-                 //print "setDollarAsk() response: $result";          
+                 print "setDollarAsk() response: $result";          
                  $response= json_decode($result);
                  $this->dollarAsk = $response->prices[0]->ask;
              }   
@@ -818,16 +812,23 @@ abstract class Trade
 
     public function TransactionComplete()
     {
-        
-        if( !$this->history->isFound() ||   
-            $this->history->getStatus() == "complete" )
+        if( $this->history != NULL )
         {
-            $return["status"] = TRUE;
-            $return["message"] = "complete";
+            if( !$this->history->isFound() ||   
+                $this->history->getStatus() == "complete" )
+            {
+                $return["status"] = TRUE;
+                $return["message"] = "complete";
+            }
+            else
+            {
+                $return["message"] = "trades still active";
+                $return["status"] = false;
+            }
         }
         else
         {
-            $return["message"] = "trades still active";
+            $return["message"] = "tradeClass history not set";
             $return["status"] = false;
         }
         
@@ -836,11 +837,14 @@ abstract class Trade
 
     public function SetTransactionHistory()
     {
-        $this->history->setExpected( $this->profit );
-        $this->history->setActual("0");
-        $this->history->setStartDate($this->monDate->format('Y-m-d H:i'));
-        $this->history->setStatus("active");
-        $this->history->updateHistory();
+        if( $this->history != NULL )
+        {
+            $this->history->setExpected( $this->profit );
+            $this->history->setActual("0");
+            $this->history->setStartDate($this->monDate->format('Y-m-d H:i'));
+            $this->history->setStatus("active");
+            $this->history->updateHistory();
+        }
     }
     
    abstract public function setOrderValues( );
@@ -852,6 +856,12 @@ abstract class Trade
 
 class SupportResist extends Trade {
     
+    public function __construct($pair, $info)
+    {
+        parent::__construct($pair, $info);
+        $this->history = new HistoryTable($this->curr, $info );
+    }
+       
     public function setOrderValues( )
     {
             $dec = ( $this->quotes['High'] > 100 ? 2 : 4);
@@ -948,7 +958,6 @@ class MonitorTrade extends Trade {
     
     public function __construct($pair, $info)
     {
-     
         $this->curr = $pair;
         $this->buyPrice = $info["buyPrice"];
         $this->sellPrice = $info["sellPrice"];
