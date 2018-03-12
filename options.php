@@ -108,6 +108,8 @@ if( sizeof($_POST) > 0 )
                   <option value = "GU"> GBP/USD </option>
                   <option value = "NU"> NZD/USD </option>
                   <option value = "UC"> USD/CAD </option>
+                  <option value = "EU"> EUR/USD </option>
+                  <option value = "AU"> AUD/USD </option>
                   <option value = "ALL">All    </option>
               </select>
               <br><br>

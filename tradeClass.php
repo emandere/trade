@@ -584,7 +584,7 @@ abstract class Trade
         {
             $url = "https://api-fxtrade.oanda.com/v1/prices?instruments=".$currency;
             $ch = curl_init($url);    
-print $this->auth;
+            //print $this->auth;
             curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json' , $this->auth ));    
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $result = curl_exec($ch);
@@ -596,7 +596,7 @@ print $this->auth;
              }
              else
              {    
-                 print "setDollarAsk() response: $result";          
+                 //print "setDollarAsk() response: $result";          
                  $response= json_decode($result);
                  $this->dollarAsk = $response->prices[0]->ask;
              }   
@@ -805,6 +805,12 @@ print $this->auth;
             case "UC":
                $return = "USD_CAD";
                break;
+           case "EU":
+               $return = "EUR_USD";
+               break;
+           case "AU":
+               $return = "AUD_USD";
+               break;
         }
 
     return($return);
@@ -880,6 +886,8 @@ class SupportResist extends Trade {
                   break;
                 case "GBP_USD":
                 case "NZD_USD":
+                case "EUR_USD":
+                case "AUD_USD":
                     $this->units = round($this->profit/$dist);
                   break;
                 case "USD_CAD":
