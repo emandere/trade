@@ -313,10 +313,10 @@ function getValues( $fileInfo )
      $valid = TRUE;
      $error;
      
-     $v1 = intval( $_POST["prof1"] );
-     $v2 = intval( $_POST["prof2"] );
+     $v1 = floatval( $_POST["prof1"] );
+     $v2 = floatval( $_POST["prof2"] );
      
-     if( !is_int($v1) || !is_int($v2) || 
+     if( !is_float($v1) || !is_float($v2) || 
           $v1 <= 0 || $v2 <= 0 ) 
      {
         print "invalid profit values";        
