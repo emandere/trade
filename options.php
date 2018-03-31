@@ -102,14 +102,16 @@ if( sizeof($_POST) > 0 )
               <form action="orders.php" method="post">
               <label for "pair">Select Currency Pair</label>
               <select name="pair">
-                  <option selected="selected" value="EA"> EUR/AUD </option>
+                  <option selected="selected" value="AJ"> AUD/JPY </option>
+                  <option value = "AU"> AUD/USD </option>
+                  <option value = "EA"> EUR/AUD </option>                  
                   <option value = "EJ"> EUR/JPY </option>
+                  <option value = "EU"> EUR/USD </option>
                   <option value = "GJ"> GBP/JPY </option>
                   <option value = "GU"> GBP/USD </option>
                   <option value = "NU"> NZD/USD </option>
                   <option value = "UC"> USD/CAD </option>
-                  <option value = "EU"> EUR/USD </option>
-                  <option value = "AU"> AUD/USD </option>
+                  <option value = "UF"> USD/CHF </option>
                   <option value = "ALL">All    </option>
               </select>
               <br><br>

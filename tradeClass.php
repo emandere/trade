@@ -811,6 +811,13 @@ abstract class Trade
            case "AU":
                $return = "AUD_USD";
                break;
+           case "AJ":
+               $return = "AUD_JPY";
+               break;
+           case "UF":
+               $return = "USD_CHF";
+               break;
+
         }
 
     return($return);
@@ -870,7 +877,7 @@ class SupportResist extends Trade {
        
     public function setOrderValues( )
     {
-            $dec = ( $this->quotes['High'] > 100 ? 2 : 4);
+            $dec = ( $this->quotes['High'] > 10 ? 2 : 4);
             $this->buyPrice = round( $this->quotes['High'], $dec, PHP_ROUND_HALF_UP );
             $this->sellPrice = round( $this->quotes['Low'], $dec, PHP_ROUND_HALF_DOWN );
             $dist = ( $this->buyPrice - $this->sellPrice ) * $this->percent;
@@ -882,6 +889,7 @@ class SupportResist extends Trade {
                   break;
                 case "EUR_JPY":
                 case "GBP_JPY":
+                case "AUD_JPY":
                     $this->units = round($this->profit/( $dist * (1/$this->dollarAsk)));
                   break;
                 case "GBP_USD":
@@ -891,6 +899,7 @@ class SupportResist extends Trade {
                     $this->units = round($this->profit/$dist);
                   break;
                 case "USD_CAD":
+                case "USD_CHF":
                     $this->units = round($this->profit/($dist * (1/($this->buyPrice + $dist))));
                   break;
             }
@@ -904,21 +913,21 @@ class SupportResist extends Trade {
             $this->expDate = new DateTime();            
             $this->expDate->add(new DateInterval('P7D'));
      
-        /*print $this->expDate->format('Y-m-d H:i'); 
+        print $this->expDate->format('Y-m-d H:i'); 
         echo "<br>";
         print "buy/sell $this->units";    
         echo "<br>";
         print "buy $this->buyPrice tp $this->buyTakeProfit sl $this->buyStopLoss";
         echo "<br>";
         print " sell $this->sellPrice tp $this->sellTakeProfit sl $this->sellStopLoss";
-          */         
+                   
     }
 
     
     public function insertOrders($auto)
     {
         
-        $dec = ($this->buyPrice > 100 ? 2 : 4);
+        $dec = ($this->buyPrice > 10 ? 2 : 4);
         $dist = round( $this->buyPrice - $this->sellPrice, $dec);
         $retInfo = [];
         
@@ -998,7 +1007,7 @@ class MonitorTrade extends Trade {
             
             if( $return["status"] == TRUE )
             {    
-                $dec = ( $this->buyPrice > 100 ? 2 : 4);
+                $dec = ( $this->buyPrice > 10 ? 2 : 4);
                 $dist = ( $this->buyPrice - $this->buyStopLoss );
 
                 switch( $this->curr )
@@ -1030,7 +1039,7 @@ class MonitorTrade extends Trade {
     public function insertOrders($auto)
     {
         
-        $dec = ($this->buyPrice > 100 ? 2 : 4);
+        $dec = ($this->buyPrice > 10 ? 2 : 4);
         $dist = round( $this->buyPrice - $this->sellPrice, $dec);
         $retInfo = [];
         
@@ -1095,7 +1104,7 @@ class TradeRange extends Trade {
     
     public function setOrderValues( )
     {
-        $dec = ($this->quotes['High'] > 100 ? 2 : 4);
+        $dec = ($this->quotes['High'] > 10 ? 2 : 4);
         $dist = round( ($this->quotes['High'] - $this->quotes['Low'])/2, $dec);
         $this->buyPrice = round( $this->quotes['Open'] + $dist,$dec);
         $this->sellPrice = round( $this->quotes['Open'] - $dist, $dec);
@@ -1144,7 +1153,7 @@ class TradeRange extends Trade {
     public function insertOrders($auto)
     {
         
-        $dec = ($this->buyPrice > 100 ? 2 : 4);
+        $dec = ($this->buyPrice > 10 ? 2 : 4);
         $dist = round( $this->quotes['High'] - $this->quotes['Low'], $dec);
         $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
         $bu_bulk = new MongoDB\Driver\BulkWrite;
