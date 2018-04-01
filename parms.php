@@ -50,16 +50,16 @@ class parmsClass
         
     }
   
-    public function readDB()
+    public function readDB( $pair )
     {
         $found = FALSE;
        
         try
         {  
                 $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
-            
+                $find = [ 'pair' => $pair ];
                 $options = [ 'projection' => [ '_id' => 0 ]];
-                $mongoQ = new MongoDB\Driver\Query([], $options);
+                $mongoQ = new MongoDB\Driver\Query($find, $options);
                 $mongoCurs = $mongoConn->executeQuery('test.Parms', $mongoQ);
                 //var_dump($mongoCurs->toArray());
         
@@ -135,7 +135,7 @@ class parmsClass
         $this->end_t_1 = $info["et1"];
         $this->strat_1 = $info["strat1"];
         $this->acct_1 = $info["acct1"];
-        $this->enable_1 = $info["enable1"];
+        $this->enable_1 = $info["enable1"]; 
         $this->profit_2 = $info["prof2"];
         $this->move_2 = $info["move2"];
         $this->start_d_2 = $info["sd2"];
@@ -148,7 +148,7 @@ class parmsClass
         
     }
     
-    public function updateDB()
+    public function updateDB( $pair )
     {
         
         
@@ -157,7 +157,7 @@ class parmsClass
             $mongoConn = new MongoDB\Driver\Manager("mongodb://".$this->mongo);
             $bulk = new MongoDB\Driver\BulkWrite;
 
-            $find = [];
+            $find = [ 'pair' => $pair ];
             $update = array("profit_1" =>  $this->profit_1,
                             "move_1" =>  $this->move_1,
                             "start_day_1" => $this->start_d_1,
@@ -183,14 +183,17 @@ class parmsClass
                 $result = $mongoConn->executeBulkWrite('test.Parms', $bulk);
 
                 //var_dump( $result);
-                if( $result->getModifiedCount() == 0 && $result->getUpsertedCount() == 0 )
+                
+                if( $result->getModifiedCount() == 0 && $result->getUpsertedCount() == 0 && 
+                    $result->getMatchedCount() == 0  )
                 {       
                     print "Error....Re-Submit";
                     //var_dump( $result);
                 }
                 else
                 {
-                    print "Update Successful!";
+                    print "Update Successful for ".$pair."!";
+                    echo "<br>";
                 }
             }
             catch (Exception $e) 
@@ -211,29 +214,92 @@ $info = readInfile();
 
 if( $info  )
 {    
+    $update = FALSE;
+    $read = FALSE;
+    
+    if( sizeof($_POST) > 0 )
+    {
+        if( array_key_exists( "update", $_POST ))
+            $update = TRUE;       
+        else if( array_key_exists( "read", $_POST ) )
+            $read = TRUE;       
+    }
+    
     $p = new parmsClass( $info );
 
-    if( sizeof($_POST) > 0 )
+    if( $update ) 
     {
         $info = getValues( $info );
         
         if( validInput( $info ) )
         {
             $p->setValues( $info );
-            $p->updateDB();
+            $info["pair1"] = $_POST["pair1"];
+            $info["pair2"] = $_POST["pair2"];
+    
+            switch ($_POST["pair2"]) 
+            {
+                case "EA":
+                case "EJ":
+                case "GJ":
+                case "GU":
+                case "NU":
+                case "UC":
+                case "EU":
+                case "AU":
+                case "AJ":
+                case "UF":
+                    $p->updateDB(abbrevToPair( $_POST["pair2"] ));   
+                 break;
+                case "ALL":
+                    $p->updateDB(abbrevToPair("EA"));
+                    $p->updateDB(abbrevToPair("EJ"));
+                    $p->updateDB(abbrevToPair("GJ"));
+                    $p->updateDB(abbrevToPair("GU"));
+                    $p->updateDB(abbrevToPair("NU"));
+                    $p->updateDB(abbrevToPair("UC"));
+                    $p->updateDB(abbrevToPair("EU"));
+                    $p->updateDB(abbrevToPair("AU"));
+                    $p->updateDB(abbrevToPair("AJ"));
+                    $p->updateDB(abbrevToPair("UF"));
+                break;
+            }   
+            
         }
     
     }
+    else if( $read )
+    {
+        switch ($_POST["pair1"]) 
+        {
+            case "EA":
+            case "EJ":
+            case "GJ":
+            case "GU":
+            case "NU":
+            case "UC":
+            case "EU":
+            case "AU":
+            case "AJ":
+            case "UF":
+                $p->readDB(abbrevToPair($_POST["pair1"]));
+             break;
+        }
+        
+        $info = $p->getValues();
+        $info["pair1"] = $_POST["pair1"];
+        $info["pair2"] = ' ';
+    }
     else
     {
-        $p->readDB();
-        $info = $p->getValues(); 
+        $info["pair1"] = ' ';
+        $info["pair2"] = ' ';
+        $info = $p->getValues();
     }
 
     if( sizeof($info) > 0 )
     {
         showPage($info);    
-        //print "== statement: ".($info["acct1"] == $info["primary"]);
     }
     else
     {
@@ -276,6 +342,8 @@ function getValues( $fileInfo )
 {
     //$acct1 = ($_POST["acct1"] == "Primary" ? $fileInfo["primary"] : $fileInfo["second"]);
     //$acct2 = ($_POST["acct2"] == "Primary" ? $fileInfo["primary"] : $fileInfo["second"]);
+        
+     
     
     $info = array("prof1" => $_POST["prof1"], 
                    "move1" => $_POST["move1"],
@@ -390,6 +458,48 @@ function getValues( $fileInfo )
     return($valid);
 }
 
+ function abbrevToPair( $abbrev )
+{
+        $return = "";
+
+        switch ($abbrev) 
+        {
+            case "EA":
+              $return = "EUR_AUD";
+               break;
+            case "EJ":
+              $return = "EUR_JPY";
+               break;
+            case "GJ":
+              $return = "GBP_JPY";
+               break;
+            case "GU":
+               $return = "GBP_USD";
+               break;
+            case "NU":
+               $return = "NZD_USD";
+               break;
+            case "UC":
+               $return = "USD_CAD";
+               break;
+           case "EU":
+               $return = "EUR_USD";
+               break;
+           case "AU":
+               $return = "AUD_USD";
+               break;
+           case "AJ":
+               $return = "AUD_JPY";
+               break;
+           case "UF":
+               $return = "USD_CHF";
+               break;
+
+        }
+
+    return($return);
+ }
+
  function showPage( $info )
  {
 ?>  
@@ -475,15 +585,23 @@ function getValues( $fileInfo )
               else
                     document.getElementById("acct2").value = 'Split';
               
-              document.getElementById("strat1").value = 
-              ( '<?php print $info["strat1"]?>' == 'SupRes' || '<?php print $info["strat1"]?>' == ' ' ? 
-                "SupRes" : "Range" )
+              document.getElementById("strat1").value = ( ('<?php print $info["strat1"]?>' == 'SupRes' || '<?php print $info["strat1"]?>' == ' ') ? 
+                "SupRes" : "Range" );
 
-              document.getElementById("strat2").value = 
-              ( '<?php print $info["strat2"]?>' == 'SupRes' || '<?php print $info["strat2"]?>' == ' ' ? 
-                "SupRes" : "Range" )
-                  
-        }
+              document.getElementById("strat2").value = ( ('<?php print $info["strat2"]?>' == 'SupRes' || '<?php print $info["strat2"]?>' == ' ') ? 
+                "SupRes" : "Range" );
+
+              
+              if( '<?php print $info["pair1"]?>' != ' ') 
+                  document.getElementById("pair1").value = "<?php print $info["pair1"]?>";
+              else
+                  document.getElementById("pair1").value = "AJ";
+              
+              if( '<?php print $info["pair2"]?>' != ' ' ) 
+                  document.getElementById("pair2").value = "<?php print $info["pair2"]?>";
+              else
+                  document.getElementById("pair2").value = "AJ";
+            }
           
           window.onload = set_initial_values;
           </script>
@@ -498,7 +616,7 @@ function getValues( $fileInfo )
               <input type ="text" name ="move1" value = "<?php print $info["move1"]?>"> (1 -100)
               <br><br> 
               <label for "strat1">Select Strategy #1</label>
-              <select name="strat1">
+              <select id="strat1" name="strat1">
                 <option value="SupRes"> Current Week Support/Resistance </option>
                 <option value="Range"> Current Week Range </option>
               </select>        
@@ -533,7 +651,7 @@ function getValues( $fileInfo )
               <input type ="text" name ="move2" value = "<?php print $info["move2"]?>"> (1 -100)
               <br><br> 
               <label for "strat2">Select Strategy #2</label>
-              <select is = "strat2" name="strat2">
+              <select id = "strat2" name="strat2">
                <option value="SupRes"> Current Week Support/Resistance </option>
                <option value="Range"> Current Week Range </option>
               </select>        
@@ -561,7 +679,34 @@ function getValues( $fileInfo )
              </div>
          </div>
               <br><br> 
-           <input type ="submit" name ="submit" value="Update Trade Parms">         
+           <input type ="submit" id = "read" name ="read" value="Read Trade Parms">   
+              <select id="pair1" name="pair1">
+                <option value="AJ"> AUD/JPY </option>
+                  <option value = "AU"> AUD/USD </option>
+                  <option value = "EA"> EUR/AUD </option>                  
+                  <option value = "EJ"> EUR/JPY </option>
+                  <option value = "EU"> EUR/USD </option>
+                  <option value = "GJ"> GBP/JPY </option>
+                  <option value = "GU"> GBP/USD </option>
+                  <option value = "NU"> NZD/USD </option>
+                  <option value = "UC"> USD/CAD </option>
+                  <option value = "UF"> USD/CHF </option>
+              </select>        
+              <br><br> 
+              <input type ="submit" id = "update" name ="update" value="Update Trade Parms">
+              <select id="pair2" name="pair2">
+                <option  value="AJ"> AUD/JPY </option>
+                  <option value = "AU"> AUD/USD </option>
+                  <option value = "EA"> EUR/AUD </option>                  
+                  <option value = "EJ"> EUR/JPY </option>
+                  <option value = "EU"> EUR/USD </option>
+                  <option value = "GJ"> GBP/JPY </option>
+                  <option value = "GU"> GBP/USD </option>
+                  <option value = "NU"> NZD/USD </option>
+                  <option value = "UC"> USD/CAD </option>
+                  <option value = "UF"> USD/CHF </option>
+                  <option value = "ALL">All    </option>
+              </select>           
          </form>
        </head>
       </html>
