@@ -913,14 +913,14 @@ class SupportResist extends Trade {
             $this->expDate = new DateTime();            
             $this->expDate->add(new DateInterval('P7D'));
      
-        print $this->expDate->format('Y-m-d H:i'); 
+        /*print $this->expDate->format('Y-m-d H:i'); 
         echo "<br>";
         print "buy/sell $this->units";    
         echo "<br>";
         print "buy $this->buyPrice tp $this->buyTakeProfit sl $this->buyStopLoss";
         echo "<br>";
         print " sell $this->sellPrice tp $this->sellTakeProfit sl $this->sellStopLoss";
-                   
+        */           
     }
 
     
