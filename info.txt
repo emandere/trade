@@ -1,7 +1,0 @@
-https://api-fxtrade.oanda.com
-localhost:27017
-5c4dc39a8d88c9194f285b1cbe9777c6-ef6b72e8b8fc4e580c1e2d15895ad96b
-001-001-277032-001
-001-001-277032-002
-
-
