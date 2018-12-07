@@ -319,6 +319,7 @@ function readInfile()
         
         if( $fh )
         {
+            $oanda = fgets($fh);
             $mon = fgets($fh);
             $tok = fgets($fh);
             $prim = fgets($fh);

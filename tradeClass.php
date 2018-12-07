@@ -356,6 +356,7 @@ abstract class Trade
     protected $getOpenPrice;
     protected $monDate;
     protected $mongo;
+    protected $oanda;
     protected $percent;
     protected $sendBuy;
     protected $sendSell;
@@ -383,6 +384,7 @@ abstract class Trade
         $this->acct2 = chop($info["acct2"]);
         $this->getOpenPrice = FALSE;
         $this->mongo = chop($info["mongo"]);   
+        $this->oanda = chop($info["oanda"]);
         $this->percent = $info["percent"] * .01;
         $this->sendBuy = $info["buy"];
         $this->sendSell = $info["sell"];
@@ -403,8 +405,11 @@ abstract class Trade
     public function getQuotes( $start, $end )
     {
       $return = [];
-      $format = "midpoint";
-      $url = "https://api-fxtrade.oanda.com/v1/candles?";
+      $priceFormat = "M";
+      //$url = "https://api-fxtrade.oanda.com/v1/candles?";
+      //$url = $this->oanda."/v1/candles?";
+      $url = $this->oanda."/v3/instruments/".$this->curr."/candles?";
+      
       $args = "";
       $args2 = "";
       date_default_timezone_set("America/New_York");      
@@ -417,10 +422,9 @@ abstract class Trade
         $bars = 1;
         $gran = "W";
         
-         $args = sprintf("instrument=%s&count=%d&candleFormat=%s&granularity=%s", 
-                       $this->curr, $bars, $format, $gran);
+         $args = sprintf("count=%d&price=%s&granularity=%s", 
+                       $bars, $priceFormat, $gran);
 
-    
          $this->monDate = new DateTime("now");
          
       }
@@ -452,19 +456,17 @@ abstract class Trade
              $bars2 = 0;
              $gran2 = "M1";
              
-             $args2= sprintf("instrument=%s&candleFormat=%s&granularity=%s&start=%d&end=%d", 
+             $args2= sprintf("instrument=%s&candleFormat=%s&granularity=%s&from=%d&to=%d", 
                        $this->curr, $format, $gran2, $openDateStart->getTimestamp(),$openDateEnd->getTimestamp());
-          
-             
-             
          }
          
-         $args = sprintf("instrument=%s&candleFormat=%s&granularity=%s&dailyAlignment=%d"
-                     . "&start=%d&end=%d", 
-                       $this->curr, $format, $gran, $align, $startDate->getTimestamp(), 
+         $args = sprintf("price=%s&granularity=%s&dailyAlignment=%d"
+                     . "&from=%d&to=%d", 
+                       $priceFormat, $gran, $align, $startDate->getTimestamp(), 
                        $endDate->getTimestamp());
     
-      }
+         
+         }
        
        
         $ch = curl_init($url.$args);    
@@ -481,23 +483,22 @@ abstract class Trade
         {    
    
             $response = json_decode($result);
-            //print $result;
+            //var_dump($response);
             $this->quotes = [ "High" => 0,
                               "Low" => 0,
                               "Open" => 0];
           
-           
             
            for( $i = 0; $i < count($response->candles); $i++ )
            {
-               if( $i == 0 || $response->candles[$i]->highMid > $this->quotes['High'])
+               if( $i == 0 || floatval($response->candles[$i]->mid->h) > $this->quotes['High'])
                {
-                   $this->quotes['High'] = $response->candles[$i]->highMid;                
+                   $this->quotes['High'] = floatval($response->candles[$i]->mid->h);                
                }
 
-               if( $i == 0 || $response->candles[$i]->lowMid < $this->quotes['Low'])
+               if( $i == 0 || floatval($response->candles[$i]->mid->l) < $this->quotes['Low'])
                {
-                   $this->quotes['Low'] = $response->candles[$i]->lowMid;
+                   $this->quotes['Low'] = floatval($response->candles[$i]->mid->l);
                }
     
            }
@@ -546,6 +547,12 @@ abstract class Trade
            
            if( $return["status"] ) 
            {    
+               /*print "high = ".$this->quotes['High'];
+               echo "<br>";
+               print "low = ".$this->quotes['Low'];
+               echo "<br>";*/
+
+               
                $return = $this->setDollarAsk();
            }
         }           
@@ -582,9 +589,10 @@ abstract class Trade
         
         if( strlen($currency) > 0 )
         {
-            $url = "https://api-fxtrade.oanda.com/v1/prices?instruments=".$currency;
+            
+            $url = $this->oanda."/v3/accounts/".$this->acct1."/pricing?instruments=".$currency;
             $ch = curl_init($url);    
-            //print $this->auth;
+            
             curl_setopt($ch, CURLOPT_HTTPHEADER, array('Content-Type: application/json' , $this->auth ));    
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             $result = curl_exec($ch);
@@ -598,14 +606,17 @@ abstract class Trade
              {    
                  //print "setDollarAsk() response: $result";          
                  $response= json_decode($result);
-                 $this->dollarAsk = $response->prices[0]->ask;
+                 //var_dump($response);
+           
+                 $this->dollarAsk = $response->prices[0]->asks[0]->price;
+                 print $this->dollarAsk;
              }   
 
              curl_close($ch);             
         }
         
         return($return);
-    }  // end setDollarAsk()
+    }  // end setDollarAsk
    
     public function sendOrders( )
     {
@@ -613,23 +624,52 @@ abstract class Trade
         $return["status"] = TRUE;
         $return["message"] = "SUCCESS";
 
-        $buy_url = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct1."/orders";
+        $buy_url = $this->oanda."/v3/accounts/".$this->acct1."/orders";
         
         if( strlen($this->acct2) > 0 )
         {
-            $sell_url = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct2."/orders";
+            $sell_url = $this->oanda."/v3/accounts/".$this->acct2."/orders";
         }
         else
         {
             $sell_url = $buy_url;
         }
         
+        
+        $buy["type"] = $sell["type"] = "MARKET_IF_TOUCHED"; 
+        
+        $buy["instrument"] = $sell["instrument"] = $this->curr;
+        $buy["timeInForce"] = $sell["timeInForce"] = "GTD";
+        $buy["units"] = $this->units;
+        $sell["units"] = ( $this->units * -1);
+        
+        $buy["gtdTime"] = $sell["gtdTime"] = sprintf("%d", $this->expDate->getTimestamp());
+            
         if( $dec == 4 )
         {
-            $mBuy = sprintf("units=%d&price=%.4f&stopLoss=%.4f&takeProfit=%.4f", 
+            $buy["price"] = sprintf("%.4f", $this->buyPrice);
+               
+            $sell["price"] = sprintf("%.4f", $this->sellPrice);
+            
+            $buy["takeProfitOnFill"] = [ "price" => sprintf("%.4f", $this->buyTakeProfit),
+                                          "timeInForce" => "GTC" ];
+           
+            $sell["takeProfitOnFill"] = [ "price" => sprintf("%.4f", $this->sellTakeProfit),
+                                          "timeInForce" => "GTC" ];
+            
+            
+            $buy["stopLossOnFill"] = [ "price" => sprintf("%.4f", $this->buyStopLoss),
+                                       "timeInForce" => "GTC" ];
+            
+            $sell["stopLossOnFill"] = [ "price" => sprintf("%.4f", $this->sellStopLoss),
+                                       "timeInForce" => "GTC" ];
+            
+            
+            
+            /*$mBuy = sprintf("units=%d&price=%.4f&stopLoss=%.4f&takeProfit=%.4f", 
                              $this->units, $this->buyPrice, $this->buyStopLoss, $this->buyTakeProfit);        
         
-            $cBuy = sprintf("instrument=%s&side=buy&type=marketIfTouched&expiry=%d", 
+            $cBuy = sprintf("instrument=%s&type=MARKET_IF_TOUCHED&timeInForce=GTD&gtdTime=%d", 
                           $this->curr, $this->expDate->getTimestamp());       
             
             $mSell = sprintf("units=%d&price=%.4f&stopLoss=%.4f&takeProfit=%.4f", 
@@ -637,24 +677,30 @@ abstract class Trade
         
             $cSell = sprintf("instrument=%s&side=sell&type=marketIfTouched&expiry=%d", 
                           $this->curr, $this->expDate->getTimestamp());       
-            
+            */
         }
         else if( $dec == 2 )
         {
-            $mBuy = sprintf("units=%d&price=%.2f&stopLoss=%.2f&takeProfit=%.2f", 
-                             $this->units, $this->buyPrice, $this->buyStopLoss, $this->buyTakeProfit);        
-        
-            $cBuy = sprintf("instrument=%s&side=buy&type=marketIfTouched&expiry=%d", 
-                          $this->curr, $this->expDate->getTimestamp());       
+            $buy["price"] = sprintf("%.2f", $this->buyPrice);
+               
+            $sell["price"] = sprintf("%.2f", $this->sellPrice);
             
-            $mSell = sprintf("units=%d&price=%.2f&stopLoss=%.2f&takeProfit=%.2f", 
-                             $this->units, $this->sellPrice, $this->sellStopLoss, $this->sellTakeProfit);        
-        
-            $cSell = sprintf("instrument=%s&side=sell&type=marketIfTouched&expiry=%d", 
-                          $this->curr, $this->expDate->getTimestamp());       
+            $buy["takeProfitOnFill"] = [ "price" => sprintf("%.2f", $this->buyTakeProfit),
+                                          "timeInForce" => "GTC" ];
+           
+            $sell["takeProfitOnFill"] = [ "price" => sprintf("%.2f", $this->sellTakeProfit),
+                                          "timeInForce" => "GTC" ];
+            
+            
+            $buy["stopLossOnFill"] = [ "price" => sprintf("%.2f", $this->buyStopLoss),
+                                       "timeInForce" => "GTC" ];
+            
+            $sell["stopLossOnFill"] = [ "price" => sprintf("%.2f", $this->sellStopLoss),
+                                       "timeInForce" => "GTC" ];
+            
         }
 
-        if( $this->buyTicket > 0 )
+        /*if( $this->buyTicket > 0 )
         {
            $buy_url = $buy_url."/".$this->buyTicket;
            $bArgs = $mBuy;
@@ -664,7 +710,7 @@ abstract class Trade
             $bArgs = $mBuy."&".$cBuy;
         }
         
-        if( $this->sellTicket > 0 )
+        /*if( $this->sellTicket > 0 )
         {
            $sell_url = $sell_url."/".$this->sellTicket;
            $sArgs = $mSell;
@@ -672,34 +718,32 @@ abstract class Trade
         else
         {
             $sArgs = $mSell."&".$cSell;
-        }
+        //}*/
         
-        /*print "$buy_url";
-        print "$bArgs";
-        echo "<br>";
-        print $sell_url;
-        print $sArgs;
-        */
+        //print "$buy_url";
+        //echo "<br>";
+        //print $sell_url;
+        //var_dump(json_encode($buy));
+        //echo "<br>";
         
         if( $this->sendBuy )
         {
             $ch = curl_init($buy_url);     
             $date = "X-Accept-Datetime-Format: UNIX";
             $patch = "X-HTTP-Method-Override: PATCH";        
-
-            if( $this->buyTicket > 0 )
+       
+           /* if( $this->buyTicket > 0 )
             { 
                 curl_setopt($ch, CURLOPT_HTTPHEADER, array($date, $this->auth, $patch ));    
-            }
-            else
-            {
-                curl_setopt($ch, CURLOPT_HTTPHEADER, array($date, $this->auth));    
-            }
+            }*/
+            
+            $order["order"] = $buy;
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array($date, $this->auth, 'Content-Type: application/json'));    
 
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch,CURLOPT_POST, true);
 
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $bArgs);
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($order));
             $result = curl_exec($ch);
 
             if( !curl_error($ch) )
@@ -707,14 +751,14 @@ abstract class Trade
                 $response= json_decode($result);
                 //var_dump($response);
                 
-                if( isset($response->code) )
+                if( isset($response->errorMessage) )
                 {
                     $return["status"] = FALSE;
-                    $return["message"] = "error code for buy order ".$response->code;
+                    $return["message"] = "error code for buy order ".$response->errorMessage;
                 }
                 else if( $this->buyTicket == 0 )
                 {
-                    $this->buyTicket = $response->orderOpened->id;
+                    $this->buyTicket = $response->relatedTransactionIDs[0];
                 }
             }
             else
@@ -731,37 +775,37 @@ abstract class Trade
             $ch = curl_init($sell_url);     
             $date = "X-Accept-Datetime-Format: UNIX";
             $patch = "X-HTTP-Method-Override: PATCH";        
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array('X-Accept-Datetime-Format: UNIX','Content-Type: application/json' , $this->auth ));    
             
-            if( $this->sellTicket > 0 )
+            /*if( $this->sellTicket > 0 )
             { 
                 curl_setopt($ch, CURLOPT_HTTPHEADER, array($date, $this->auth, $patch ));    
-            }
-            else
-            {
-                curl_setopt($ch, CURLOPT_HTTPHEADER, array($date, $this->auth));    
-            }
+            }*/
             
+            $order["order"] = $sell;
+            curl_setopt($ch, CURLOPT_HTTPHEADER, array($date, $this->auth, 'Content-Type: application/json'));    
+
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
             curl_setopt($ch,CURLOPT_POST, true);
-                
-            curl_setopt($ch, CURLOPT_POSTFIELDS, $sArgs);
+
+            curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($order));
             $result = curl_exec($ch);
+            
 
             if( !curl_error($ch) )
             {
                 $response = json_decode($result);
                 //var_dump($response);
                 
-                if( isset($response->code) )
+                if( isset($response->errorMessage) )
                 {
                     $return["status"] = FALSE;
-                    $return["message"] = "error code for sell order ".$response->code;
+                    $return["message"] = "error code for buy order ".$response->errorMessage;
                 }
                 else if( $this->sellTicket == 0 )
                 {
-                   $this->sellTicket = $response->orderOpened->id;
-                   
-               }
+                    $this->sellTicket = $response->relatedTransactionIDs[0];
+                }
             }
             else
             {

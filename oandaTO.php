@@ -34,13 +34,15 @@ class oandaTO {
     private $auth;
     
     private $mongo;
-   
+    private $oanda;
+    
     public function __construct($info)
     {
         $this->auth = "Authorization: Bearer ".chop($info["token"]);
         $this->mongo = chop($info["mongo"]);
         $this->acct1 = chop($info["acct1"]);
         $this->acct2 = chop($info["acct2"]);
+        $this->oanda = chop($info["oanda_url"]);
         
         $this->pulledOrders =  FALSE;
         $this->pulledTrades =  FALSE;
@@ -94,8 +96,8 @@ class oandaTO {
             
             if( $this->hPL[$pair] == NULL )
             {
-            $url_1 = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct1."/transactions?instrument=".$pair;
-            $url_2 = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct2."/transactions?instrument=".$pair;
+            $url_1 = $this->oanda."/v1/accounts/".$this->acct1."/transactions?instrument=".$pair;
+            $url_2 = $this->oanda."/v1/accounts/".$this->acct2."/transactions?instrument=".$pair;
             
             $ch = curl_init($url_1);
 
@@ -210,8 +212,8 @@ class oandaTO {
         
         if( $this->oTable[$pair]->isFound() && !$this->pulledOrders )
         {
-            $url_1 = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct1."/orders";
-            $url_2 = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct2."/orders";
+            $url_1 = $this->oanda."/v1/accounts/".$this->acct1."/orders";
+            $url_2 = $this->oanda."/v1/accounts/".$this->acct2."/orders";
             
            
             $ch = curl_init($url_1);
@@ -307,8 +309,8 @@ class oandaTO {
         
         if( $this->oTable[$pair]->isFound() && !$this->pulledTrades )
         {
-            $url_1 = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct1."/trades";
-            $url_2 = "https://api-fxtrade.oanda.com/v1/accounts/".$this->acct2."/trades";
+            $url_1 = $this->oanda."/v1/accounts/".$this->acct1."/trades";
+            $url_2 = $this->oanda."/v1/accounts/".$this->acct2."/trades";
             
            
             $ch = curl_init($url_1);

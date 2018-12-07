@@ -11,6 +11,7 @@ function processInput()
     
     if( $fh )
     {
+       $oanda_url = fgets($fh);
        $mongo = fgets($fh);
        $tok = fgets($fh);
        $primary = fgets($fh);
@@ -18,12 +19,13 @@ function processInput()
        fclose($fh);
            
        
-       if( $mongo && $tok && $primary && $second )
+       if( $oanda_url && $mongo && $tok && $primary && $second )
        {
            $info = array("token" => $tok, 
                          "acct1" => $primary,
                          "acct2" => $second,
-                         "mongo" => $mongo );
+                         "mongo" => $mongo,
+                         "oanda_url" => $oanda_url );
            
           
            $Oanda = new oandaTO($info);
