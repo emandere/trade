@@ -1,0 +1,31 @@
+apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
+kind: Service
+metadata:
+  name: forex-app-service
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+  selector:
+    app: trade
+kind: Deployment
+metadata:
+  name: trade
+spec:
+  selector:
+    matchLabels:
+      app: trade
+  replicas: 1 # tells deployment to run 2 pods matching the template
+  template:
+    metadata:
+      labels:
+        app: trade
+    spec:
+      containers:
+      - name: trade
+        image: emandere/trade:latest
+        env:
+          - name: ASPNETCORE_ENVIRONMENT
+            value: "Prodk3s"
+        ports:
+        - containerPort: 80
