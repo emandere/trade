@@ -18,5 +18,13 @@ spec:
         env:
           - name: ASPNETCORE_ENVIRONMENT
             value: "Prodk3s"
+        volumeMounts:
+          - name: secrets
+            mountPath: "/etc/secrets"
+            readOnly: true
         ports:
         - containerPort: 80
+      volumes:
+        - name: secrets
+          secret:
+            secretName: faccount
