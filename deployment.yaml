@@ -20,7 +20,7 @@ spec:
             value: "Prodk3s"
         volumeMounts:
           - name: secrets
-            mountPath: "/etc/secrets"
+            mountPath: "/var/www/html"
             readOnly: true
         ports:
         - containerPort: 80
