@@ -313,7 +313,7 @@ if( $info  )
 
 function readInfile()
 {
-        $infile = "info.txt";
+        $infile = "account";
         $fh = fopen($infile, "r");
         $info = FALSE;
         
