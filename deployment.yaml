@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
       - name: trade
-        image: emandere/trade
+        image: emandere/trade-{platform}:{buildId}
         env:
           - name: ASPNETCORE_ENVIRONMENT
             value: "Prodk3s"
