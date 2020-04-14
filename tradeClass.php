@@ -476,6 +476,7 @@ abstract class Trade
         $response = json_decode($result);
         print "$url.$args";
         print "$this->auth";
+        print "$result";
         var_dump($response);    
         if( curl_error($ch) )
         {
