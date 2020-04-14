@@ -473,11 +473,7 @@ abstract class Trade
         curl_setopt($ch, CURLOPT_HTTPHEADER, array('X-Accept-Datetime-Format: UNIX','Content-Type: application/json' , $this->auth ));    
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         $result = curl_exec($ch);
-        $response = json_decode($result);
-        print "$url.$args";
-        print "$this->auth";
-        print "$result";
-        var_dump($response);    
+        $response = json_decode($result);    
         if( curl_error($ch) )
         {
            $return["status"] = FALSE;
