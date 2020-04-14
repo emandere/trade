@@ -474,6 +474,7 @@ abstract class Trade
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         $result = curl_exec($ch);
         $response = json_decode($result);
+        print "$url.$args";
         var_dump($response);    
         if( curl_error($ch) )
         {
