@@ -6,5 +6,5 @@ RUN pecl install mongodb \
 
 RUN sed -i 's/openssl_conf/# openssl_conf/' /etc/ssl/openssl.cnf
 RUN sed -i 's/SECLEVEL=2/SECLEVEL=1/' /etc/ssl/openssl.cnf
-RUN sed '354,362d' /etc/ssl/openssl.cnf
+RUN sed -i '354,362d' /etc/ssl/openssl.cnf
 ADD * /var/www/html/trade/
