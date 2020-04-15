@@ -3,7 +3,8 @@ RUN apt-get update
 RUN apt-get install -y autoconf pkg-config libssl-dev
 RUN pecl install mongodb \
     && docker-php-ext-enable mongodb
-    
-RUN sed -i 's/openssl_conf/#openssl_conf/' /etc/ssl/openssl.cnf
+
+RUN sed -i 's/openssl_conf/# openssl_conf/' /etc/ssl/openssl.cnf
 RUN sed -i 's/SECLEVEL=2/SECLEVEL=1/' /etc/ssl/openssl.cnf
+RUN sed '354,362d' /etc/ssl/openssl.cnf
 ADD * /var/www/html/trade/
