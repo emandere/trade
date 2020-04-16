@@ -24,6 +24,8 @@ spec:
             readOnly: true
         ports:
         - containerPort: 80
+      nodeSelector:
+        platform: {platform}
       volumes:
         - name: secrets
           secret:
