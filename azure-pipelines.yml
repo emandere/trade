@@ -13,7 +13,7 @@ resources:
 variables:
   tag: '$(Build.BuildId)'
   releaseTag: '$(Build.BuildNumber)'
-  serviceName: 'forex-app-trader'
+  serviceName: 'trade'
   x86ImageName: 'emandere/$(serviceName)-x86'
   armImageName: 'emandere/$(serviceName)-arm'
   DeploymentPath: '/home/emandere/deployments/$(serviceName)/$(releaseTag)'
