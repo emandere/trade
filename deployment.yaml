@@ -1,3 +1,29 @@
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  name: trade
+  annotations:
+    traefik.frontend.rule.type: PathPrefixStrip
+spec:
+    rules:
+        - http:
+            paths:
+            - path: /strategy
+              backend:
+                serviceName: trade
+                servicePort: 80
+---
+apiVersion: v1 # for versions before 1.9.0 use apps/v1beta2
+kind: Service
+metadata:
+  name: trade
+spec:
+  type: LoadBalancer
+  ports:
+  - port: 80
+  selector: 
+    app: trade
+---
 apiVersion: apps/v1 # for versions before 1.9.0 use apps/v1beta2
 kind: Deployment
 metadata:
