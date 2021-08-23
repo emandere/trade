@@ -9,6 +9,7 @@ spec:
         - http:
             paths:
             - path: /strategy
+              pathType: Prefix
               backend:
                 service:
                   name: trade
