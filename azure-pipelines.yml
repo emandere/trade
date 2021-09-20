@@ -69,24 +69,29 @@ stages:
                 echo $(releaseTag)
 
                 sudo mkdir -p $(DeploymentPath)
-                
                 sudo rm -f $(DeploymentPath)/*
                 
                 sudo chmod 775 $(DeploymentPath)
-                
                 sudo wget -q $(GitHubDeploymentPath) -P  $(DeploymentPath)
-                
+                sudo wget -q $(GitHubSecretsPath)  -P $(DeploymentPath)
                 sudo sed -i 's/{platform}/x86/'  $(DeploymentConfigPath)
-                
                 sudo sed -i 's/{buildId}/$(Build.BuildId)/'  $(DeploymentConfigPath)
+
+                sudo sed -i 's@{URL}@$(URL)@'  $(DeploymentSecretsPath)
+                sudo sed -i 's/{DB_URL}/$(DB_URL)/'  $(DeploymentSecretsPath)
+                sudo sed -i 's/{TOKEN}/$(TOKEN)/'  $(DeploymentSecretsPath)
+                sudo sed -i 's/{PRIM_ACC}/$(PRIM_ACC)/'  $(DeploymentSecretsPath)
+                sudo sed -i 's/{SEC_ACC}/$(SEC_ACC)/'  $(DeploymentSecretsPath)
                 
                 
               displayName: 'Set up artifacts'
 
             - bash: |
                 # Write your commands here
-            
+                sudo k3s kubectl delete secret faccount --ignore-not-found
+                sudo k3s kubectl create secret generic faccount --from-file $(DeploymentSecretsPath)
                 sudo k3s kubectl apply -f  $(DeploymentConfigPath)
+
               
               displayName: 'Deploy Release'
             - bash: |
@@ -132,7 +137,10 @@ stages:
               displayName: 'Deploy new release'
               inputs:
                 sshEndpoint: 'aws-arm'
-                commands: 'k3s kubectl apply -f  $(DeploymentConfigPath)'
+                commands: |
+                  k3s kubectl delete secret faccount --ignore-not-found
+                  k3s kubectl create secret generic faccount --from-file $(DeploymentSecretsPath)
+                  k3s kubectl apply -f  $(DeploymentConfigPath)
             - task: SSH@0
               displayName: 'Verify Release'
               inputs:
