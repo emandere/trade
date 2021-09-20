@@ -1,0 +1,5 @@
+{URL}
+{DB_URL}
+{TOKEN}
+{PRIM_ACC}
+{SEC_ACC}
