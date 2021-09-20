@@ -117,6 +117,7 @@ stages:
                   chmod 775 $(DeploymentPath)
                   
                   wget -q $(GitHubDeploymentPath) -P  $(DeploymentPath)
+                  wget -q $(GitHubSecretsPath)  -P $(DeploymentPath)
                   
                   sed -i 's/{platform}/x86/'  $(DeploymentConfigPath)
 
