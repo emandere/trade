@@ -19,6 +19,8 @@ variables:
   armImageName: 'emandere/$(serviceName)-arm'
   DeploymentPath: '/home/emandere/deployments/$(serviceName)/$(releaseTag)'
   GitHubDeploymentPath: 'https://raw.githubusercontent.com/emandere/$(serviceName)/master/deployment.yaml'
+  GitHubSecretsPath: 'https://raw.githubusercontent.com/emandere/$(serviceName)/master/info.txt'
+  DeploymentSecretsPath: '/home/emandere/deployments/$(serviceName)/$(releaseTag)/info.txt'
   DeploymentConfigPath: '/home/emandere/deployments/$(serviceName)/$(releaseTag)/deployment.yaml'
 
 stages:
@@ -117,6 +119,12 @@ stages:
                   wget -q $(GitHubDeploymentPath) -P  $(DeploymentPath)
                   
                   sed -i 's/{platform}/x86/'  $(DeploymentConfigPath)
+
+                  sed -i 's@{URL}@$(URL)@'  $(DeploymentSecretsPath)
+                  sed -i 's/{DB_URL}/$(DB_URL)/'  $(DeploymentSecretsPath)
+                  sed -i 's/{TOKEN}/$(TOKEN)/'  $(DeploymentSecretsPath)
+                  sed -i 's/{PRIM_ACC}/$(PRIM_ACC)/'  $(DeploymentSecretsPath)
+                  sed -i 's/{SEC_ACC}/$(SEC_ACC)/'  $(DeploymentSecretsPath)
                   
                   sed -i 's/{buildId}/$(Build.BuildId)/'  $(DeploymentConfigPath)
             - task: SSH@0
