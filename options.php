@@ -123,6 +123,9 @@ if( sizeof($_POST) > 0 )
                <label for "profit"> Enter expected profit</label>
               <input type ="text" id ="profit" name ="profit" value = "0.0">
               <br><br> 
+              <label for "risk"> Enter expected risk</label>
+              <input type ="text" id ="risk" name ="risk" value = "0.0">
+              <br><br> 
               <label for "strat">Select Strategy</label>
               <select id="strat" name="strat">
                   <option selected="selected" value="SupRes"> Current Week Support/Resistance </option>
@@ -133,9 +136,9 @@ if( sizeof($_POST) > 0 )
               <input type ="text" id="start" name ="start" value = "0"> (yyyy-mm-dd hh:mm)
               <br><br>
               <label for "end"> Use End Date  </label>
-              <input type ="text" id="end" name ="end" value = "0"> (yyyy-mm-dd hh:mm)
+              <input type ="text" id="end" name ="endS" value = "0"> (yyyy-mm-dd hh:mm)
               <br><br>
-              <label for "percent"> Pip Move %  </label>
+              <label for "percent"> Win Move %  </label>
               <input type ="text" id="percent" name ="percent" value = "100"> (1-100)
               <br><br>
               <label for "acct">Select Account</label>

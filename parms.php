@@ -3,6 +3,7 @@
 class parmsClass
 {    
     private $profit_1;
+    private $risk_1;
     private $move_1;
     private $start_d_1;
     private $end_d_1;
@@ -12,6 +13,7 @@ class parmsClass
     private $acct_1;
     private $enable_1;
     private $profit_2;
+    private $risk_2;
     private $move_2;
     private $start_d_2;
     private $end_d_2;
@@ -27,6 +29,7 @@ class parmsClass
     public function __construct( $info )
     {
         $this->profit_1 = 0;
+        $this->risk_1 = 0;
         $this->move_1 = 100;
         $this->start_d_1 = 1;
         $this->end_d_1 = 1;
@@ -36,6 +39,7 @@ class parmsClass
         $this->acct_1 = "Split";
         $this->enable_1 = 'Y';
         $this->profit_2 = 0;
+        $this->risk_2 = 0;
         $this->move_2 = 100;
         $this->start_d_2 = 1;
         $this->end_d_2 = 1;
@@ -66,7 +70,8 @@ class parmsClass
                 foreach($mongoCurs as $rec)
                 {
                     $this->profit_1 = ( $rec->profit_1 ? $rec->profit_1 : $this->profit_1 );
-                    $this->move_1 = ( $rec->move_1 ? $rec->move_1 : $this->move_1 );
+                    $this->risk_1 = ( $rec->risk_1 ? $rec->risk_1 : $this->risk_1 );
+                    $this->p_move_1 = ( $rec->p_move_1 ? $rec->p_move_1 : $this->p_move_1 );
                     $this->start_d_1 = ( $rec->start_day_1 ? $rec->start_day_1 : $this->start_d_1 ); 
                     $this->end_d_1 = ( $rec->end_day_1 ? $rec->end_day_1 : $this->end_d_1 );
                     $this->start_t_1 = ( $rec->start_time_1 ? $rec->start_time_1 : $this->start_t_1 );
@@ -75,7 +80,8 @@ class parmsClass
                     $this->acct_1 = ( $rec->acct_1 ? $rec->acct_1: $this->acct_1 );
                     $this->enable_1 = ( $rec->enable_1 ? $rec->enable_1 : $this->enable_1 );
                     $this->profit_2 = ( $rec->profit_2 ? $rec->profit_2 : $this->profit_2 );
-                    $this->move_2 = ( $rec->move_2 ? $rec->move_2 : $this->move_2); 
+                    $this->risk_2 = ( $rec->risk_2 ? $rec->risk_2 : $this->risk_2 );
+                    $this->p_move_2 = ( $rec->p_move_2 ? $rec->p_move_2 : $this->p_move_2 );
                     $this->start_d_2 = ( $rec->start_day_2 ? $rec->start_day_2 : $this->start_d_2 );
                     $this->end_d_2 = ( $rec->end_day_2 ? $rec->end_day_2 : $this->end_d_2 ); 
                     $this->start_t_2 = ( $rec->start_time_2 ? $rec->start_time_2 : $this->start_t_2 ); 
@@ -100,7 +106,8 @@ class parmsClass
     public function getValues()
     {
         $info = array("prof1" => $this->profit_1,
-                      "move1" => $this->move_1,
+                      "risk1" => $this->risk_1,
+                      "p_move1" => $this->p_move_1,
                       "sd1" => $this->start_d_1, 
                       "ed1" => $this->end_d_1, 
                       "st1" => $this->start_t_1,
@@ -109,7 +116,8 @@ class parmsClass
                       "acct1" => $this->acct_1,
                       "enable1" => $this->enable_1,
                       "prof2" => $this->profit_2,
-                      "move2" => $this->move_2,
+                      "risk2" => $this->risk_2,
+                      "p_move2" => $this->p_move_2,
                       "sd2" => $this->start_d_2,
                       "ed2" => $this->end_d_2,
                       "st2" => $this->start_t_2,
@@ -128,7 +136,8 @@ class parmsClass
     public function setValues( $info )
     {
         $this->profit_1 = $info["prof1"];
-        $this->move_1 = $info["move1"];
+        $this->risk_1 = $info["risk1"];
+        $this->p_move_1 = $info["p_move1"];
         $this->start_d_1 = $info["sd1"];
         $this->end_d_1 = $info["ed1"];
         $this->start_t_1 = $info["st1"];
@@ -137,7 +146,8 @@ class parmsClass
         $this->acct_1 = $info["acct1"];
         $this->enable_1 = $info["enable1"]; 
         $this->profit_2 = $info["prof2"];
-        $this->move_2 = $info["move2"];
+        $this->risk_2 = $info["risk2"];
+        $this->p_move_2 = $info["p_move2"];
         $this->start_d_2 = $info["sd2"];
         $this->end_d_2 = $info["ed2"];
         $this->start_t_2 = $info["st2"];
@@ -159,7 +169,8 @@ class parmsClass
 
             $find = [ 'pair' => $pair ];
             $update = array("profit_1" =>  $this->profit_1,
-                            "move_1" =>  $this->move_1,
+                             "risk_1" =>  $this->risk_1,
+                            "p_move_1" =>  $this->p_move_1,
                             "start_day_1" => $this->start_d_1,
                             "end_day_1" => $this->end_d_1,
                             "start_time_1" => $this->start_t_1,
@@ -168,7 +179,8 @@ class parmsClass
                             "acct_1" => $this->acct_1,
                             "enable_1" => $this->enable_1,
                             "profit_2" =>  $this->profit_2,
-                            "move_2" =>  $this->move_2,
+                            "risk_2" =>  $this->risk_2,
+                            "p_move_2" =>  $this->p_move_2,
                             "start_day_2" => $this->start_d_2,
                             "end_day_2" => $this->end_d_2,
                             "start_time_2" => $this->start_t_2,
@@ -347,7 +359,8 @@ function getValues( $fileInfo )
      
     
     $info = array("prof1" => $_POST["prof1"], 
-                   "move1" => $_POST["move1"],
+                  "risk1" => $_POST["risk1"],
+                  "p_move1" => $_POST["pm1"],
                    "sd1" => $_POST["sd1"], 
                    "ed1" => $_POST["ed1"], 
                    "st1" => $_POST["st1"],
@@ -355,7 +368,8 @@ function getValues( $fileInfo )
                    "strat1" => $_POST["strat1"],
                    "acct1" => $_POST["acct1"],
                    "prof2" => $_POST["prof2"],
-                   "move2" => $_POST["move2"],
+                   "risk2" => $_POST["risk2"],
+                   "p_move2" => $_POST["pm2"],
                    "sd2" => $_POST["sd2"],
                    "ed2" => $_POST["ed2"],
                    "st2" => $_POST["st2"],
@@ -384,17 +398,19 @@ function getValues( $fileInfo )
      
      $v1 = floatval( $_POST["prof1"] );
      $v2 = floatval( $_POST["prof2"] );
+     $v3 = floatval( $_POST["risk1"] );
+     $v4 = floatval( $_POST["risk2"] );
      
-     if( !is_float($v1) || !is_float($v2) || 
-          $v1 <= 0 || $v2 <= 0 ) 
+     if( !is_float($v1) || !is_float($v2) || !is_float($v3) || !is_float($v4) || 
+          $v1 <= 0 || $v2 <= 0 || $v3 <= 0 || $v4 <= 0) 
      {
-        print "invalid profit values";        
+        print "invalid profit/risk values";        
         echo "<br>";
         $valid = FALSE;
      }   
 
-     $v1 = intval( $_POST["move1"] );
-     $v2 = intval( $_POST["move2"] );
+     $v1 = intval( $_POST["pm1"] );
+     $v2 = intval( $_POST["pm2"] );
      
      if( !is_int($v1) || !is_int($v2) || 
           $v1 <= 0 || $v2 <= 0 || $v1 > 100 || $v2 > 100 ) 
@@ -613,8 +629,11 @@ function getValues( $fileInfo )
               <label for "prof1"> Profit #1</label>
               <input type ="text" name ="prof1" value = "<?php print $info["prof1"]?>">
               <br><br> 
-              <label for "move1"> Move% #1</label>
-              <input type ="text" name ="move1" value = "<?php print $info["move1"]?>"> (1 -100)
+              <label for "risk1"> Risk #1</label>
+              <input type ="text" name ="risk1" value = "<?php print $info["risk1"]?>">
+              <br><br>
+              <label for "pm1">Win Move% #1</label>
+              <input type ="text" name ="pm1" value = "<?php print $info["p_move1"]?>"> (1 -100)
               <br><br> 
               <label for "strat1">Select Strategy #1</label>
               <select id="strat1" name="strat1">
@@ -648,8 +667,11 @@ function getValues( $fileInfo )
               <label for "prof2"> Profit #2</label>
               <input type ="text" name ="prof2" value = "<?php print $info["prof2"]?>">
               <br><br> 
-              <label for "move1"> Move% #2</label>
-              <input type ="text" name ="move2" value = "<?php print $info["move2"]?>"> (1 -100)
+              <label for "risk2"> Risk #2</label>
+              <input type ="text" name ="risk2" value = "<?php print $info["risk2"]?>">
+              <br><br>
+              <label for "pm2">Win Move% #2</label>
+              <input type ="text" name ="pm2" value = "<?php print $info["p_move2"]?>"> (1 -100)
               <br><br> 
               <label for "strat2">Select Strategy #2</label>
               <select id = "strat2" name="strat2">
