@@ -136,7 +136,7 @@ if( sizeof($_POST) > 0 )
               <input type ="text" id="start" name ="start" value = "0"> (yyyy-mm-dd hh:mm)
               <br><br>
               <label for "end"> Use End Date  </label>
-              <input type ="text" id="end" name ="endS" value = "0"> (yyyy-mm-dd hh:mm)
+              <input type ="text" id="end" name ="end" value = "0"> (yyyy-mm-dd hh:mm)
               <br><br>
               <label for "percent"> Win Move %  </label>
               <input type ="text" id="percent" name ="percent" value = "100"> (1-100)
